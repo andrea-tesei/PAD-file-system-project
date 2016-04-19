@@ -3,30 +3,34 @@ package it.cnr.isti.pad.UDPSocket;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-
-import com.google.code.gossip.GossipService;
+import java.util.HashMap;
 
 import it.cnr.isti.pad.PADfs.App;
 
-
-public class UDPServer implements IUDPSocket {
-	private final int localPort = 9099;
-	private String serverName = "";
-	private DatagramSocket dgsocket = null;
+public class UDPClientsHandler implements IUDPSocket {
 	
-	public UDPServer() throws UnknownHostException, SocketException {
-		this.serverName = App.grs.getGossipService().get_gossipManager().getMyself().getHost();
-		System.out.println("Starting UDP server at: " + this.serverName);
-		this.dgsocket = new DatagramSocket(this.localPort);
+	private DatagramSocket dgsocket = null;
+	private HashMap<String, SocketRemoteInfo> nodes = new HashMap<String, SocketRemoteInfo>();
+
+	public UDPClientsHandler() throws SocketException{
+		this.dgsocket = new DatagramSocket();
+		if(App.grs != null){
+			App.grs.getGossipService().get_gossipManager().getMemberList().forEach(node -> 
+							{
+								if(!node.getHost().equals(App.grs.getGossipService().get_gossipManager().getMyself().getHost())){
+									System.out.println("Retrieving client socket info for: " + node.getHost() + ":" + node.getPort());
+									SocketRemoteInfo info = new SocketRemoteInfo(node.getHost());
+									nodes.put(node.getHost(), info);
+								}
+							});
+		}
 	}
 	
 	@Override
-	public boolean sendPacket(byte[] msg, SocketAddress addr) {
+	public boolean sendPacket(byte[] msg, SocketAddress remoteServerAddr) {
 		try {
 			// Transforming length of the packet in byte-encoding
 			byte[] length_bytes = new byte[4];
@@ -35,12 +39,11 @@ public class UDPServer implements IUDPSocket {
 			length_bytes[2] = (byte) ((msg.length << 16) >> 24);
 			length_bytes[3] = (byte) ((msg.length << 24) >> 24);
 
-			// Sending packet
 			ByteBuffer byteBuffer = ByteBuffer.allocate(4 + msg.length);
 			byteBuffer.put(length_bytes);
 			byteBuffer.put(msg);
 			byte[] buf = byteBuffer.array();
-			this.dgsocket.send(new DatagramPacket(buf, buf.length, addr));
+			dgsocket.send(new DatagramPacket(buf, buf.length, remoteServerAddr));
 		} catch (IOException e) {
 			e.printStackTrace();
 			return false;
@@ -48,6 +51,10 @@ public class UDPServer implements IUDPSocket {
 		return true;
 	}
 	
+	public HashMap<String, SocketRemoteInfo> getNodes() {
+		return nodes;
+	}
+
 	@Override
 	public String receivePacket() {
 		String receivedMessage = "";
@@ -63,7 +70,7 @@ public class UDPServer implements IUDPSocket {
 				int shift = (4 - 1 - i) * 8;
 				packet_length += (buf[i] & 0x000000FF) << shift;
 			}
-			
+
 			// Read content of the message
 			byte[] json_bytes = new byte[packet_length];
 			for (int i = 0; i < packet_length; i++) {
@@ -81,17 +88,5 @@ public class UDPServer implements IUDPSocket {
 	public boolean closeConnection(){
 		this.dgsocket.close();
 		return this.dgsocket.isClosed();
-	}
-	
-	public int getLocalPort() {
-		return localPort;
-	}
-
-	public String getServerName() {
-		return serverName;
-	}
-
-	public DatagramSocket getDgsocket() {
-		return dgsocket;
 	}
 }
