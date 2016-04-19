@@ -32,8 +32,11 @@ public class StartupSettings {
 
   /** The list with gossip members to start with. */
   private final List<GossipMember> _gossipMembers;
+  
+  /** The hostname of this machine */
+  private String _hostname;
 
-  /**
+/**
    * Constructor.
    *
    * @param id
@@ -43,8 +46,8 @@ public class StartupSettings {
    * @param logLevel
    *          unused
    */
-  public StartupSettings(String id, int port, int logLevel) {
-    this(id, port, new GossipSettings());
+  public StartupSettings(String id, String hostname, int port, int logLevel) {
+    this(id, hostname, port, new GossipSettings());
   }
 
   /**
@@ -55,8 +58,9 @@ public class StartupSettings {
    * @param port
    *          The port to start the service on.
    */
-  public StartupSettings(String id, int port, GossipSettings gossipSettings) {
+  public StartupSettings(String id, String hostname, int port, GossipSettings gossipSettings) {
     _id = id;
+    _hostname = hostname;
     _port = port;
     _gossipSettings = gossipSettings;
     _gossipMembers = new ArrayList<>();
@@ -91,6 +95,15 @@ public class StartupSettings {
     _port = port;
   }
 
+  /**
+   * Get the hostname of the machine which run the gossip service.
+   * 
+   * @return hostname
+   */
+  public String getHostname() {
+		return _hostname;
+  }
+  
   /**
    * Get the port for the gossip service.
    *
@@ -165,9 +178,13 @@ public class StartupSettings {
 
     // Get the cleanup_interval from the config file.
     int cleanupInterval = jsonObject.getInt("cleanup_interval");
-
+    
+    // Get the hostname of the machine which run the gossip service
+    String hostname = jsonObject.getString("hostname");
+    System.out.println("essioo " +hostname);
+    
     // Initiate the settings with the port number.
-    StartupSettings settings = new StartupSettings(id, port, new GossipSettings(
+    StartupSettings settings = new StartupSettings(id, hostname, port, new GossipSettings(
             gossipInterval, cleanupInterval));
 
     // Now iterate over the members from the config file and add them to the settings.
