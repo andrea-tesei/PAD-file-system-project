@@ -3,9 +3,9 @@ package it.cnr.isti.pad.Gossiping;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.InetAddress;
 
 import org.json.JSONException;
-
 import com.google.code.gossip.GossipService;
 import com.google.code.gossip.StartupSettings;
 

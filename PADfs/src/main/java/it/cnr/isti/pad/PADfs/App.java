@@ -1,14 +1,14 @@
 package it.cnr.isti.pad.PADfs;
 
 import java.io.File;
-import java.io.UnsupportedEncodingException;
-import java.net.DatagramPacket;
+import java.io.IOException;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
-
+import com.google.common.io.Files;
 import it.cnr.isti.pad.Gossiping.GossipResourceService;
 import it.cnr.isti.pad.UDPSocket.UDPClientsHandler;
 import it.cnr.isti.pad.UDPSocket.UDPServer;
@@ -31,24 +31,24 @@ public class App
 		if (args.length == 1) {
 			configFile = new File("./" + args[0]);
 			App.grs = new GossipResourceService(configFile);
-			try {
-				App.udpServer = new UDPServer();
-				App.clientsHandlerSocket = new UDPClientsHandler();
-				UDPClientRunnable udpClientRunnable = new UDPClientRunnable();
-				UDPServerRunnable udpServerRunnable = new UDPServerRunnable();
-				Thread udpclientThread = new Thread(udpClientRunnable);
-				Thread udpserverThread = new Thread(udpServerRunnable);
-				udpclientThread.run();
-				udpserverThread.run();
-			} catch (UnknownHostException e) {
-				e.printStackTrace();
-				grs.getGossipService().get_gossipManager().shutdown();
-				App.LOGGER.error("Error: a problem arise while extracting your address. Please check it and try again.");
-			} catch (SocketException e) {
-				e.printStackTrace();
-				grs.getGossipService().get_gossipManager().shutdown();
-				App.LOGGER.error("Error: a problem arise while setting up the server socket. Please try again later.");
-			}
+//			try {
+//				App.udpServer = new UDPServer();
+//				App.clientsHandlerSocket = new UDPClientsHandler();
+//				UDPClientRunnable udpClientRunnable = new UDPClientRunnable();
+//				UDPServerRunnable udpServerRunnable = new UDPServerRunnable();
+//				Thread udpclientThread = new Thread(udpClientRunnable);
+//				Thread udpserverThread = new Thread(udpServerRunnable);
+//				udpclientThread.run();
+//				udpserverThread.run();
+//			} catch (UnknownHostException e) {
+//				e.printStackTrace();
+//				grs.getGossipService().get_gossipManager().shutdown();
+//				App.LOGGER.error("Error: a problem arise while extracting your address. Please check it and try again.");
+//			} catch (SocketException e) {
+//				e.printStackTrace();
+//				grs.getGossipService().get_gossipManager().shutdown();
+//				App.LOGGER.error("Error: a problem arise while setting up the server socket. Please try again later.");
+//			}
 		} else {
 			System.err.println("Error: settings file is missing. You must specify a configuration file.");
 			return;
@@ -62,14 +62,18 @@ public class App
 		public void run() {
 			JSONObject sendMsg = new JSONObject();
 			try {
+				File file = new File("./Coupon.pdf");
 				sendMsg.put("host", App.udpServer.getServerName());
 				sendMsg.put("type", "REQUEST");
 				sendMsg.put("command", "GET");
-			} catch (JSONException e) {
+				byte[] provaFileBA = Files.toByteArray(file);
+				sendMsg.put("filename", file.getName());
+				sendMsg.put("file",Base64.encodeBase64String(provaFileBA));
+			} catch (JSONException | IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 				App.LOGGER.error("The system encountered a problem while packeting your message. Please try again later.");
-			}
+			} 
 			App.clientsHandlerSocket.getNodes().forEach((ip,info) -> App.clientsHandlerSocket.sendPacket(sendMsg.toString().getBytes(), info.getRemoteServerAddr()));
 					
 		}
@@ -88,8 +92,12 @@ public class App
     			try {
     				rcvdJson = new JSONObject(receivedPacket);
     				host = rcvdJson.getString("host");
+    				byte[] rcvdFile = Base64.decodeBase64(rcvdJson.getString("file"));
+    				// save the file to disk
+    				File saveFile = new File("./gossipzzz.pdf");
+    				Files.write(rcvdFile, saveFile);
     				App.LOGGER.info("Received packet from: " + host + "  :  " + rcvdJson.getString("type") + " " + rcvdJson.getString("command")); // new String(rcvpacket.getData(), rcvpacket.getOffset(), rcvpacket.getLength(), "UTF-8")
-    			} catch (JSONException e) {
+    			} catch (JSONException | IOException e) {
     				e.printStackTrace();
     				App.LOGGER.error("The system encountered a problem while processing received json. Packet from: " + host);
     			}
