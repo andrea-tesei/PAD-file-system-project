@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.code.gossip.GossipMember;
@@ -23,12 +24,14 @@ import com.google.code.gossip.event.GossipState;
 public class TenNodeThreeSeedTest {
   private static final Logger log = Logger.getLogger( TenNodeThreeSeedTest.class );
 
-  @Test
+//  @Test
+  @Ignore
   public void test() throws UnknownHostException, InterruptedException{
     abc();
   }
 
-  @Test
+//  @Test
+  @Ignore
   public void testAgain() throws UnknownHostException, InterruptedException{
     abc();
   }

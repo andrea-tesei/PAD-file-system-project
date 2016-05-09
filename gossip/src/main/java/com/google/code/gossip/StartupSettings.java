@@ -181,7 +181,6 @@ public class StartupSettings {
     
     // Get the hostname of the machine which run the gossip service
     String hostname = jsonObject.getString("hostname");
-    System.out.println("essioo " +hostname);
     
     // Initiate the settings with the port number.
     StartupSettings settings = new StartupSettings(id, hostname, port, new GossipSettings(
@@ -193,7 +192,7 @@ public class StartupSettings {
     for (int i = 0; i < membersJSON.length(); i++) {
       JSONObject memberJSON = membersJSON.getJSONObject(i);
       RemoteGossipMember member = new RemoteGossipMember(memberJSON.getString("host"),
-              memberJSON.getInt("port"), "");
+              memberJSON.getInt("port"), memberJSON.getString("id"));
       settings.addGossipMember(member);
       configMembersDetails += member.getAddress();
       if (i < (membersJSON.length() - 1))

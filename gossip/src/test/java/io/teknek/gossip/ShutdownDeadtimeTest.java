@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 
 
 import org.apache.log4j.Logger;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.code.gossip.GossipMember;
@@ -23,8 +24,8 @@ import com.google.code.gossip.event.GossipState;
 public class ShutdownDeadtimeTest {
 
   private static final Logger log = Logger.getLogger(ShutdownDeadtimeTest.class );
-  @Test
-  //@Ignore
+  //@Test
+  @Ignore
   public void DeadNodesDoNotComeAliveAgain() throws InterruptedException, UnknownHostException {
       GossipSettings settings = new GossipSettings(1000, 10000);
       
