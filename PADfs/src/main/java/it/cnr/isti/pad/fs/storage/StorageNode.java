@@ -56,7 +56,7 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 				ConsistentHasher.getStringToBytesConverter(), 
 				ConsistentHasher.getStringToBytesConverter(), 
 				ConsistentHasher.SHA1);
-		// TODO: this is piece of shit. Do it with separate thread.
+		// TODO: the way waiting for MemberList has to be changed.
 		while(grs.getGossipService().get_gossipManager().getMemberList().isEmpty())
 			;
 		grs.getGossipService().get_gossipManager().getMemberList().forEach(member -> cHasher.addBucket(member.getId()));
