@@ -1,4 +1,4 @@
-package it.cnr.isti.pad.UDPSocket;
+package it.cnr.isti.pad.fs.udpsocket;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -8,7 +8,7 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 
-import it.cnr.isti.pad.PADfs.App;
+import it.cnr.isti.pad.fs.storage.StorageNode;
 
 public class UDPClientsHandler implements IUDPSocket {
 	
@@ -17,10 +17,10 @@ public class UDPClientsHandler implements IUDPSocket {
 
 	public UDPClientsHandler() throws SocketException{
 		this.dgsocket = new DatagramSocket();
-		if(App.grs != null){
-			App.grs.getGossipService().get_gossipManager().getMemberList().forEach(node -> 
+		if(StorageNode.grs != null){
+			StorageNode.grs.getGossipService().get_gossipManager().getMemberList().forEach(node -> 
 							{
-								if(!node.getHost().equals(App.grs.getGossipService().get_gossipManager().getMyself().getHost())){
+								if(!node.getHost().equals(StorageNode.grs.getGossipService().get_gossipManager().getMyself().getHost())){
 									System.out.println("Retrieving client socket info for: " + node.getHost() + ":" + node.getPort());
 									SocketRemoteInfo info = new SocketRemoteInfo(node.getHost());
 									nodes.put(node.getHost(), info);
@@ -85,8 +85,8 @@ public class UDPClientsHandler implements IUDPSocket {
 	}
 	
 	@Override
-	public boolean closeConnection(){
+	public void closeConnection(){
 		this.dgsocket.close();
-		return this.dgsocket.isClosed();
+		this.dgsocket = null;
 	}
 }

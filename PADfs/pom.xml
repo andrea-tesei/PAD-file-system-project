@@ -33,10 +33,10 @@
 			<artifactId>commons-codec</artifactId>
 			<version>1.10</version>
 		</dependency>
-		<dependency>
-			<groupId>it.cnr.isti.pad</groupId>
-			<artifactId>ConsistentHashing</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
+		<dependency>	
+			<groupId>it.cnr.isti.hpclab</groupId>
+			<artifactId>consistent-hashing</artifactId>
+			<version>0.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>it.cnr.isti.hpclab</groupId>

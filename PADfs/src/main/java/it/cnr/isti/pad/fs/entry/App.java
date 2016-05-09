@@ -1,28 +1,30 @@
-package it.cnr.isti.pad.PADfs;
+package it.cnr.isti.pad.fs.entry;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.util.ArrayList;
+
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import com.google.common.io.Files;
-import it.cnr.isti.pad.Gossiping.GossipResourceService;
-import it.cnr.isti.pad.UDPSocket.UDPClientsHandler;
-import it.cnr.isti.pad.UDPSocket.UDPServer;
+
+import it.cnr.isti.pad.fs.storage.StorageNode;
+import it.cnr.isti.pad.fs.udpsocket.UDPClientsHandler;
+import it.cnr.isti.pad.fs.udpsocket.UDPServer;
 
 public class App 
 {
 	public static final Logger LOGGER = Logger.getLogger(App.class);
-	public static GossipResourceService grs = null;
 	public static UDPServer udpServer = null;
 	public static UDPClientsHandler clientsHandlerSocket = null; 
 	
+	
+	
     public static void main( String[] args )
     {
-    	
+    
     	// Instanciation of Gossip Service
     	org.apache.log4j.BasicConfigurator.configure();
 	
@@ -30,14 +32,20 @@ public class App
 
 		if (args.length == 1) {
 			configFile = new File("./" + args[0]);
-			App.grs = new GossipResourceService(configFile);
+			//App.grs = new GossipResourceService(configFile);
+			StorageNode node = new StorageNode(configFile);
+			ArrayList<String> bucketFor = node.retrieveBucketForMember("prova.txt");
+			bucketFor.forEach(bucket -> System.out.println("BucketFor: " + bucket));
+			
+			
+			
 //			try {
 //				App.udpServer = new UDPServer();
 //				App.clientsHandlerSocket = new UDPClientsHandler();
-//				UDPClientRunnable udpClientRunnable = new UDPClientRunnable();
-//				UDPServerRunnable udpServerRunnable = new UDPServerRunnable();
-//				Thread udpclientThread = new Thread(udpClientRunnable);
-//				Thread udpserverThread = new Thread(udpServerRunnable);
+				UDPClientRunnable udpClientRunnable = new UDPClientRunnable();
+				UDPServerRunnable udpServerRunnable = new UDPServerRunnable();
+				Thread udpclientThread = new Thread(udpClientRunnable);
+				Thread udpserverThread = new Thread(udpServerRunnable);
 //				udpclientThread.run();
 //				udpserverThread.run();
 //			} catch (UnknownHostException e) {

@@ -1,4 +1,4 @@
-package it.cnr.isti.pad.UDPSocket;
+package it.cnr.isti.pad.fs.udpsocket;
 
 import java.net.InetSocketAddress;
 

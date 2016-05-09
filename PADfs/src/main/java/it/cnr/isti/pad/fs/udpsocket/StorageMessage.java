@@ -1,4 +1,4 @@
-package it.cnr.isti.pad.UDPSocket;
+package it.cnr.isti.pad.fs.udpsocket;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -14,6 +14,14 @@ public class StorageMessage extends Message {
 	
 	StorageMessage(){
 		message = new JSONObject();
+	}
+	
+	public void setIdRequest(int id) throws JSONException{
+		message.put("idrequest", id);
+	}
+	
+	public int getIdRequest() throws JSONException {
+		return message.getInt("idrequest");
 	}
 	
 	public void setHost(String host) throws JSONException{
@@ -40,12 +48,12 @@ public class StorageMessage extends Message {
 		return message.getInt("command");
 	}
 	
-	public void setError(String err) throws JSONException{
-		message.put("error", err);
+	public void setReturnCode(int rc) throws JSONException{
+		message.put("rc", rc);
 	}
 	
-	public String getError() throws JSONException{
-		return message.getString("error");
+	public int getReturnCode() throws JSONException{
+		return message.getInt("rc");
 	}
 	
 	public void setOutput(JSONArray out) throws JSONException{
