@@ -1,14 +1,12 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-
-	<groupId>it.cnr.isti.pad</groupId>
-	<artifactId>ConsistentHashing</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<groupId>it.cnr.isti.hpclab</groupId>
+	<artifactId>consistent-hashing</artifactId>
+	<name>consistent-hashing</name>
+	<version>0.0.1</version>
+	<description>A simple implementation of consistent hashing with virtual nodes</description>
 	<packaging>jar</packaging>
-
-	<name>ConsistentHashing</name>
-	<url>http://maven.apache.org</url>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -16,34 +14,51 @@
         <maven.compiler.target>1.8</maven.compiler.target>
 	</properties>
 
+	<licenses>
+		<license>
+			<name>The Apache Software License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>3.8.1</version>
+			<version>4.8.2</version>
 			<scope>test</scope>
 		</dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>18.0</version>
+        </dependency>
+
 		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>18.0</version>
+			<groupId>org.jdom</groupId>
+			<artifactId>jdom</artifactId>
+			<version>2.0.2</version>
 		</dependency>
+
 	</dependencies>
+	
 	<build>
 		<plugins>
 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.1</version>
-				<configuration>
+		     <plugin>
+		        <groupId>org.apache.maven.plugins</groupId>
+		        <artifactId>maven-compiler-plugin</artifactId>
+		        <version>3.1</version>
+        		<configuration>
 					<source>${maven.compiler.target}</source>
-					<target>${maven.compiler.source}</target>
-					<encoding>${project.build.sourceEncoding}</encoding>
-				</configuration>
-			</plugin>
-
-
+                    <target>${maven.compiler.source}</target>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                </configuration>
+      		</plugin>
+		
+		
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-eclipse-plugin</artifactId>
@@ -80,8 +95,8 @@
 					</archive>
 				</configuration>
 			</plugin>
-
-			<plugin>
+ 
+      	    <plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<version>2.4.1</version>
@@ -91,16 +106,18 @@
 					</descriptorRefs>
 				</configuration>
 				<executions>
-					<execution>
+		 			<execution>
 						<id>make-assembly</id>
-						<phase>package</phase>
-						<goals>
+			  			<phase>package</phase> 
+			  			<goals>
 							<goal>single</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
+			  			</goals>
+		   			</execution>
+		 		</executions>
+	  		</plugin>
+		
 		</plugins>
 	</build>
+
 </project>
+
