@@ -99,6 +99,18 @@ public interface ConsistentHasher<B, M>
 	 * @return all buckets that are stored, otherwise an empty list.
 	 */
 	List<B> getAllBuckets();
+	
+	/**
+	 * Returns the next key greater than or equal to the given key. Returns
+	 * null in case of error and fromBucket in case of NOT_EXISTS error on
+	 * fromBucket.
+	 * 
+	 * @param fromBucket: the key from which start
+	 * @return the next key greater than or equal to fromBucket
+	 */
+	B getDescendantBucketKey(B fromBucket);
+	
+	B getLowerKey(B fromBucket);
 
 	/**
 	 * This fetches the members for the given bucket from the given members

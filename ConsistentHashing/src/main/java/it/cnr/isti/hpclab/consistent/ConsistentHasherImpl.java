@@ -44,17 +44,17 @@ public class ConsistentHasherImpl<B, M> implements ConsistentHasher<B, M>
 	public static final int VIRTUAL_INSTANCES_PER_BUCKET = 700;
 
 	private final int startVirtualNodeId, stopVirtualNodeId;
-	
+
 	private final HashFunction hashFunction;
-	
+
 	private final BytesConverter<B> bucketDataToBytesConverter;
 	private final BytesConverter<M> memberDataToBytesConverter;
 
 	private final NavigableMap<ByteBuffer, B> bucketsMap;
 	private final NavigableMap<ByteBuffer, M> membersMap;
-	
+
 	private final ConcurrentMap<B, BucketInfo> bucketsAndLocks;
-	
+
 	/**
 	 * Contains a lock for the bucket, and also contains all virtual bucket names.
 	 * 
@@ -88,23 +88,23 @@ public class ConsistentHasherImpl<B, M> implements ConsistentHasher<B, M>
 	 * @param hashFunction	is used to hash the given bucket and member.
 	 */
 	public ConsistentHasherImpl(final int virtualInstancesPerBucket,
-								final BytesConverter<B> bucketDataToBytesConverter,
-								final BytesConverter<M> memberDataToBytesConverter,
-								final HashFunction hashFunction) 
+			final BytesConverter<B> bucketDataToBytesConverter,
+			final BytesConverter<M> memberDataToBytesConverter,
+			final HashFunction hashFunction) 
 	{
 		Preconditions.checkNotNull(bucketDataToBytesConverter, "Bucket data converter can not be null.");
 		Preconditions.checkNotNull(memberDataToBytesConverter, "Member data converter can not be null.");
 		Preconditions.checkNotNull(hashFunction,			   "HashFunction can not be null.");
-		
+
 		this.bucketsMap = new ConcurrentSkipListMap<>();
 		this.membersMap = new ConcurrentSkipListMap<>();
 		this.bucketsAndLocks = new ConcurrentHashMap<>();
-		
+
 		this.startVirtualNodeId = 1;
 		this.stopVirtualNodeId = (virtualInstancesPerBucket > 0) ? virtualInstancesPerBucket : 1;
-		
+
 		this.hashFunction = hashFunction;
-		
+
 		this.bucketDataToBytesConverter = bucketDataToBytesConverter;
 		this.memberDataToBytesConverter = memberDataToBytesConverter;
 	}
@@ -209,6 +209,7 @@ public class ConsistentHasherImpl<B, M> implements ConsistentHasher<B, M>
 	{
 		Preconditions.checkNotNull(bucketName);
 		BucketInfo bInfo = bucketsAndLocks.get(bucketName);
+		//		bucketsMap.tailMap(bInfo, inclusive).firstkey();
 		if (bInfo == null)
 			return Collections.emptyList();
 		ReadWriteLock rwLock = bInfo.rwLock;
@@ -218,6 +219,7 @@ public class ConsistentHasherImpl<B, M> implements ConsistentHasher<B, M>
 			if (bucketsAndLocks.containsKey(bucketName)) {
 				for (ByteBuffer currNode : bInfo.virtBuckets) {
 					ByteBuffer prevNode = bucketsMap.lowerKey(currNode);
+
 					if (prevNode == null) {
 						result.addAll(members.headMap(currNode, true).values());
 						Optional<ByteBuffer> lastKey = getLastKey(bucketsMap);
@@ -232,6 +234,59 @@ public class ConsistentHasherImpl<B, M> implements ConsistentHasher<B, M>
 			rwLock.readLock().unlock();
 		}
 		return result;
+	}
+
+	@Override
+	public B getDescendantBucketKey(B fromBucket){
+		Preconditions.checkNotNull(fromBucket);
+		BucketInfo bInfo = bucketsAndLocks.get(fromBucket);
+		if(bInfo == null)
+			return fromBucket;
+		ReadWriteLock rwLock = bInfo.rwLock;
+		B retValue = null;
+		try {
+			rwLock.readLock().lock();
+			ByteBuffer fromBucketKey = convertAndApplyHash(1, fromBucket);
+			Optional<ByteBuffer> lastKey = getLastKey(bucketsMap);
+			if(!bucketsMap.tailMap(fromBucketKey, false).isEmpty()){
+				System.out.println(bucketsMap.tailMap(fromBucketKey, false).isEmpty());
+				bucketsMap.forEach((bkey, bucketName) -> System.out.println(bucketName));
+				ByteBuffer nextBucketKey = bucketsMap.tailMap(fromBucketKey, false).firstKey();
+				retValue = bucketsMap.get(nextBucketKey);
+			} else {
+				if (lastKey.isPresent()	&& lastKey.get().equals(fromBucketKey))
+					retValue = bucketsMap.firstEntry().getValue();
+			}
+		} finally {
+			rwLock.readLock().unlock();
+		}
+		return retValue;
+	}
+
+	
+	@Override
+	public B getLowerKey(B fromBucket){
+		Preconditions.checkNotNull(fromBucket);
+		BucketInfo bInfo = bucketsAndLocks.get(fromBucket);
+		if(bInfo == null)
+			return fromBucket;
+		ReadWriteLock rwLock = bInfo.rwLock;
+		B retValue = null;
+		try {
+			rwLock.readLock().lock();
+			ByteBuffer fromBucketKey = convertAndApplyHash(1, fromBucket);
+			ByteBuffer prevNode = bucketsMap.lowerKey(fromBucketKey);
+
+			if (prevNode == null) {
+				Optional<ByteBuffer> lastKey = getLastKey(bucketsMap);
+				if (lastKey.isPresent()	&& !lastKey.get().equals(fromBucketKey))
+					retValue = bucketsMap.get(lastKey.get());
+			} else 
+				retValue = bucketsMap.get(prevNode);
+		} finally {
+			rwLock.readLock().unlock();
+		}
+		return retValue;
 	}
 
 	@Override
