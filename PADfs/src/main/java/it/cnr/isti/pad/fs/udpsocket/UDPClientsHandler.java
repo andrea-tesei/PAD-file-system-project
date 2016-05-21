@@ -6,7 +6,12 @@ import java.net.DatagramSocket;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
+
+import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import it.cnr.isti.pad.fs.storage.StorageNode;
 
@@ -14,6 +19,7 @@ public class UDPClientsHandler implements IUDPSocket {
 	
 	private DatagramSocket dgsocket = null;
 	private HashMap<String, SocketRemoteInfo> nodes = new HashMap<String, SocketRemoteInfo>();
+	public static final Logger LOGGER = Logger.getLogger(UDPClientsHandler.class);
 
 	public UDPClientsHandler() throws SocketException{
 		this.dgsocket = new DatagramSocket();
@@ -21,12 +27,22 @@ public class UDPClientsHandler implements IUDPSocket {
 			StorageNode.grs.getGossipService().get_gossipManager().getMemberList().forEach(node -> 
 							{
 								if(!node.getHost().equals(StorageNode.grs.getGossipService().get_gossipManager().getMyself().getHost())){
-									System.out.println("Retrieving client socket info for: " + node.getHost() + ":" + node.getPort());
+									UDPClientsHandler.LOGGER.info("Retrieving client socket info for: " + node.getHost() + ":" + node.getPort());
 									SocketRemoteInfo info = new SocketRemoteInfo(node.getHost());
 									nodes.put(node.getHost(), info);
 								}
 							});
 		}
+	}
+	
+	public SocketAddress getSocketAddressFromIP(String ip){
+		ArrayList<SocketAddress> result = new ArrayList<SocketAddress>();
+		this.nodes.forEach((host,info) -> 
+		{ 
+			if(host.equals(ip))
+				result.add(info.getRemoteServerAddr());
+		});
+		return result.size() == 0 ? null : result.get(0);
 	}
 	
 	@Override
@@ -46,6 +62,7 @@ public class UDPClientsHandler implements IUDPSocket {
 			dgsocket.send(new DatagramPacket(buf, buf.length, remoteServerAddr));
 		} catch (IOException e) {
 			e.printStackTrace();
+			UDPClientsHandler.LOGGER.error("An error occurred while sending packet: " + e.getMessage());
 			return false;
 		}
 		return true;
@@ -56,7 +73,7 @@ public class UDPClientsHandler implements IUDPSocket {
 	}
 
 	@Override
-	public String receivePacket() {
+	public JSONObject receivePacket() throws JSONException {
 		String receivedMessage = "";
 		DatagramPacket p = null;
 		try {
@@ -79,9 +96,10 @@ public class UDPClientsHandler implements IUDPSocket {
 			receivedMessage = new String(json_bytes);
 		} catch (IOException e) {
 			e.printStackTrace();
+			LOGGER.error("An error occurred while receiving packet from: " + p.getAddress().getHostAddress() + " : " + e.getMessage());
 			return null;
 		}
-		return receivedMessage;
+		return new JSONObject(receivedMessage);
 	}
 	
 	@Override

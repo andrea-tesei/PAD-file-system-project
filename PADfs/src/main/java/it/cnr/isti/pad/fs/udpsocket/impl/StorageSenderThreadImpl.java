@@ -1,21 +1,32 @@
 package it.cnr.isti.pad.fs.udpsocket.impl;
 
-import it.cnr.isti.pad.fs.event.OnSendMessageListener;
+import java.util.ArrayList;
 import it.cnr.isti.pad.fs.udpsocket.StorageMessage;
 import it.cnr.isti.pad.fs.udpsocket.StorageSenderThread;
 
-public class StorageSenderThreadImpl extends StorageSenderThread implements OnSendMessageListener {
-
+public class StorageSenderThreadImpl extends StorageSenderThread {
+	
+	public StorageSenderThreadImpl(){
+		super();
+	}
+	
 	@Override
-	protected void sendMessage(StorageMessage msg) {
-		// TODO Auto-generated method stub
-		
+	protected void processSendMessageRequests() {
+		super.run();
 	}
 
+
 	@Override
-	public void onRequestSendMessage(StorageMessage msg) {
-		// TODO Auto-generated method stub
-		
+	public void addSendRequestToQueue(StorageMessage msg, String ip) {
+//		if(pendingSendRequest == null)
+//			pendingSendRequest = new HashMap<String,ArrayList<StorageMessage>>();
+		ArrayList<StorageMessage> msglist = new ArrayList<StorageMessage>();
+		msglist.add(msg);
+		if(pendingSendRequest.containsKey(ip)){
+			pendingSendRequest.get(ip).forEach(request -> msglist.add(request));
+			pendingSendRequest.replace(ip, msglist);
+		} else
+			pendingSendRequest.put(ip,msglist);
 	}
 
 }

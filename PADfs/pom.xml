@@ -33,7 +33,7 @@
 			<artifactId>commons-codec</artifactId>
 			<version>1.10</version>
 		</dependency>
-		<dependency>	
+		<dependency>
 			<groupId>it.cnr.isti.hpclab</groupId>
 			<artifactId>consistent-hashing</artifactId>
 			<version>0.0.1</version>
@@ -43,6 +43,17 @@
 			<artifactId>versioning</artifactId>
 			<version>0.0.1</version>
 		</dependency>
+		<dependency>
+			<groupId>com.beust</groupId>
+			<artifactId>jcommander</artifactId>
+			<version>1.48</version>
+		</dependency>
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20160212</version>
+		</dependency>
+
 	</dependencies>
 	<build>
 		<plugins>
