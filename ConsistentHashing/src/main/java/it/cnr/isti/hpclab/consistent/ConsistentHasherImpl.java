@@ -209,7 +209,6 @@ public class ConsistentHasherImpl<B, M> implements ConsistentHasher<B, M>
 	{
 		Preconditions.checkNotNull(bucketName);
 		BucketInfo bInfo = bucketsAndLocks.get(bucketName);
-		//		bucketsMap.tailMap(bInfo, inclusive).firstkey();
 		if (bInfo == null)
 			return Collections.emptyList();
 		ReadWriteLock rwLock = bInfo.rwLock;
@@ -249,8 +248,6 @@ public class ConsistentHasherImpl<B, M> implements ConsistentHasher<B, M>
 			ByteBuffer fromBucketKey = convertAndApplyHash(1, fromBucket);
 			Optional<ByteBuffer> lastKey = getLastKey(bucketsMap);
 			if(!bucketsMap.tailMap(fromBucketKey, false).isEmpty()){
-				System.out.println(bucketsMap.tailMap(fromBucketKey, false).isEmpty());
-				bucketsMap.forEach((bkey, bucketName) -> System.out.println(bucketName));
 				ByteBuffer nextBucketKey = bucketsMap.tailMap(fromBucketKey, false).firstKey();
 				retValue = bucketsMap.get(nextBucketKey);
 			} else {
