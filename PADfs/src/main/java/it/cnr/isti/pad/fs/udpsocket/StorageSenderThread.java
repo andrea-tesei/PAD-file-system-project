@@ -6,11 +6,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.log4j.Logger;
+
 import it.cnr.isti.pad.fs.entry.App;
+import it.cnr.isti.pad.fs.storage.StorageNode;
 
 abstract public class StorageSenderThread implements Runnable {
 
 	protected UDPClientsHandler clientsHandlerSocket = null; 
+	
+	public static final Logger LOGGER = Logger.getLogger(StorageSenderThread.class);
 
 	protected ConcurrentHashMap<String, ArrayList<StorageMessage>> pendingSendRequest = null;
 	
@@ -26,7 +31,7 @@ abstract public class StorageSenderThread implements Runnable {
 
 	@Override
 	public void run() {
-		App.LOGGER.assertLog(pendingSendRequest != null, "The send message queue is null.");
+		StorageSenderThread.LOGGER.assertLog(pendingSendRequest != null, "The send message queue is null.");
 		pendingSendRequest.forEach((ip,requestlist) -> 
 		{ 
 			SocketAddress addressForSend = clientsHandlerSocket.getSocketAddressFromIP(ip);
@@ -34,17 +39,18 @@ abstract public class StorageSenderThread implements Runnable {
 				requestlist.forEach(request ->
 				{
 					try {
-						App.LOGGER.info("Sending message to " + ip + " " + request.toJSONObject().toString());
-						clientsHandlerSocket.sendPacket(request.toJSONObject().toString().getBytes(), addressForSend);
+						StorageSenderThread.LOGGER.info("Sending message to " + ip + " " + request.toJSONObject().toString());
+						clientsHandlerSocket.sendPacket(request.toJSONObjectWithFile().toString().getBytes(), addressForSend);
 					} catch (Exception e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
-						App.LOGGER.error("Error while parsing send request message to: " + ip);
+						StorageSenderThread.LOGGER.error("Error while parsing send request message to: " + ip + "; Error: " + e.getMessage());
 					}
 				});
 			} else
-				App.LOGGER.error("The specified address is not bounded to any client. " + ip);
+				StorageSenderThread.LOGGER.error("The specified address is not bounded to any client. " + ip);
 		});
+		pendingSendRequest.clear();
 	}
 
 	public void shutdown(){

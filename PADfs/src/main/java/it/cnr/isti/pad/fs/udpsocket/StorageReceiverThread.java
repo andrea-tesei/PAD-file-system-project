@@ -30,13 +30,13 @@ abstract public class StorageReceiverThread implements Runnable {
 		while (keepRunning.get()) {
 			try {
 				JSONObject receivedPacket = this.udpServer.receivePacket(); 
-				StorageReceiverThread.LOGGER.info("Received message from: " + receivedPacket);
+				StorageReceiverThread.LOGGER.info("Received message: " + receivedPacket);
 				this.processMessage(receivedPacket);
 			} catch (JSONException e) {
 				e.printStackTrace();
+				StorageReceiverThread.LOGGER.error("Error while processing received message. Error: " + e.getMessage());
 			}
 		}
-		shutdown();
 	}
 	
 	public String getServerHost(){
@@ -47,6 +47,7 @@ abstract public class StorageReceiverThread implements Runnable {
 		keepRunning.set(false);
 		this.udpServer.closeConnection();
 		this.udpServer = null;
+		StorageReceiverThread.LOGGER.info("The receiver thread is shutting down..");
 	}
 	
 	abstract protected void processMessage(JSONObject receivedMsg);

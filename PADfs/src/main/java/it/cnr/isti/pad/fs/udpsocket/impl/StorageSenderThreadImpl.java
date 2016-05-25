@@ -24,7 +24,8 @@ public class StorageSenderThreadImpl extends StorageSenderThread {
 		msglist.add(msg);
 		if(pendingSendRequest.containsKey(ip)){
 			pendingSendRequest.get(ip).forEach(request -> msglist.add(request));
-			pendingSendRequest.replace(ip, msglist);
+			pendingSendRequest.remove(ip);
+			pendingSendRequest.put(ip, msglist);
 		} else
 			pendingSendRequest.put(ip,msglist);
 	}

@@ -1,5 +1,6 @@
 package it.cnr.isti.pad.fs.udpsocket.impl;
 
+import java.io.IOException;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,10 +39,10 @@ public class StorageReceiverThreadImpl extends StorageReceiverThread {
 		// TODO Auto-generated method stub
 		try {
 			triggerListeners(new StorageMessage(receivedMsg));
-		} catch (JSONException e) {
+		} catch (JSONException | IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			StorageReceiverThread.LOGGER.error("Error while receiving message: " + receivedMsg.toString());
+			StorageReceiverThread.LOGGER.error("Error while receiving message: " + receivedMsg.toString() + "; Error: " + e.getMessage());
 		}
 	}
 
