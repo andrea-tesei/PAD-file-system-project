@@ -1,102 +1,142 @@
 package it.cnr.isti.pad.fs.storage;
 
-import java.io.File;
 import java.io.IOException;
-
-import org.apache.commons.codec.binary.Base64;
+import java.util.ArrayList;
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import com.google.common.io.Files;
-
 import it.cnr.isti.pad.fs.entry.App;
-import it.cnr.isti.pad.fs.udpsocket.StorageMessage;
 import voldemort.versioning.VectorClock;
 
 public class Data {
-	
+
 	private Integer idFile;
 	private boolean isReplica;
 	private String author;
+	private String owner;
 	private String fileName;
 	private String pathToFile;
 	private VectorClock version;
-	private File file;
-	
-	
+	private String file;
+	private ArrayList<Data> conflict;
+
+
 	/**
 	 * Data constructor. Creates new Data object from given input
 	 * 
 	 * @param idFile : node's internal id of the file
 	 * @param isReplica : true if this file is a replica's copy
-	 * @param author 
+	 * @param author
+	 * @param owner : node owner of this file 
 	 * @param fileName
 	 * @param pathToFile : real path of the file
 	 * @param version : timestamp of creation/modification
 	 */
-	public Data(Integer idFile, boolean isReplica, String author, String fileName, String pathToFile, VectorClock version){
+	public Data(Integer idFile, boolean isReplica, String author, String owner, String fileName, String pathToFile, String file, VectorClock version){
 		this.idFile = idFile;
 		this.isReplica = isReplica;
 		this.author = author;
+		this.owner = owner;
 		this.fileName = fileName;
 		this.pathToFile = pathToFile;
 		this.version = version;
-		this.file = new File(this.pathToFile + this.fileName);
+		this.file = file;
+		this.conflict = new ArrayList<Data>();
 	}
-	
+
+	/**
+	 * Data constructor.
+	 * 
+	 * @param inputDataFromMessage : the Data field of a StorageMessage
+	 * @throws JSONException : if an error occurs while parsing JSON
+	 * @throws IOException : if an error occurs while writing/reading Data locally
+	 */
 	public Data(JSONObject inputDataFromMessage) throws JSONException, IOException{
-		if(inputDataFromMessage.has(StorageMessage.Fields.DATA)){
-			if(((JSONObject) inputDataFromMessage.get(StorageMessage.Fields.DATA)).has(Data.Fields.file))
-				this.fromJSONObjectWithFile(inputDataFromMessage);
+		if(inputDataFromMessage.has(Data.Fields.file)){
+			this.fromJSONObjectWithFile(inputDataFromMessage);
 		} else
 			this.fromJSONObject(inputDataFromMessage);
 	}
+	
+	public ArrayList<Data> getConflicts(){
+		return conflict;
+	}
+	
+	public void addConflict(Data dataInConflict){
+		this.conflict.add(dataInConflict);
+	}
+	
+	public boolean hasConflict(){
+		return !(this.conflict.size() == 0);
+	}
+	
+	public void clearConflict(){
+		this.conflict.clear();
+	}
 
-	public File getFile() {
+	public String getOwner() {
+		return owner;
+	}
+
+	public void setOwner(String owner) {
+		this.owner = owner;
+	}
+
+	public String getFile() {
 		return file;
 	}
 
-	public void setFile(File file) {
+	public void setFile(String file) {
 		this.file = file;
 	}
 
 	public Integer getIdFile() {
 		return idFile;
 	}
+	
 	public void setIdFile(Integer idFile) {
 		this.idFile = idFile;
 	}
+	
 	public boolean isReplica() {
 		return isReplica;
 	}
+	
 	public void setReplica(boolean isReplica) {
 		this.isReplica = isReplica;
 	}
+	
 	public String getAuthor() {
 		return author;
 	}
+	
 	public void setAuthor(String author) {
 		this.author = author;
 	}
+	
 	public String getFileName() {
 		return fileName;
 	}
+	
 	public void setFileName(String fileName) {
 		this.fileName = fileName;
 	}
+	
 	public String getPathToFile() {
 		return pathToFile;
 	}
+	
 	public void setPathToFile(String pathToFile) {
 		this.pathToFile = pathToFile;
 	}
+	
 	public VectorClock getVersion() {
 		return version;
 	}
-	public void setVersion(long timestamp) {
-		this.version = new VectorClock(timestamp);
-	}
 	
+	public void setVersion(VectorClock vc) {
+		this.version = vc;
+	}
+
 	public JSONObject toJSONObject(){
 		JSONObject obj = new JSONObject();
 		try {
@@ -114,7 +154,7 @@ public class Data {
 		}
 		return obj;
 	}
-	
+
 	public JSONObject toJSONObjectWithFile(){
 		JSONObject obj = new JSONObject();
 		try {
@@ -124,12 +164,10 @@ public class Data {
 			obj.put(Fields.fileName, this.fileName);
 			obj.put(Fields.pathToFile, this.pathToFile);
 			obj.put(Fields.version, this.version.getTimestamp());
-			if(this.file != null){
-				if(this.file.isFile())
-					obj.put(Fields.file, Base64.encodeBase64String(Files.toByteArray(this.file)));
-				else
-					throw new IOException("The given file does not exists.");
-			}
+			if(this.file != null)
+				obj.put(Fields.file, this.file);
+			else
+				throw new IOException("The given file does not exists.");
 		} catch (JSONException | IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -138,29 +176,37 @@ public class Data {
 		}
 		return obj;
 	}
-	
+
 	private void fromJSONObject(JSONObject inputJson) throws JSONException{
-			this.idFile = inputJson.getInt(Fields.idFile);
-			this.isReplica = inputJson.getBoolean(Fields.isReplica);
-			this.author = inputJson.getString(Fields.author);
-			this.fileName = inputJson.getString(Fields.fileName);
-			this.pathToFile = inputJson.getString(Fields.pathToFile);
-			this.version = new VectorClock(inputJson.getLong(Fields.version));
-	}
-	
-	private void fromJSONObjectWithFile(JSONObject inputJson) throws JSONException, IOException{
 		this.idFile = inputJson.getInt(Fields.idFile);
 		this.isReplica = inputJson.getBoolean(Fields.isReplica);
 		this.author = inputJson.getString(Fields.author);
 		this.fileName = inputJson.getString(Fields.fileName);
 		this.pathToFile = inputJson.getString(Fields.pathToFile);
 		this.version = new VectorClock(inputJson.getLong(Fields.version));
-		byte[] rcvdFile = Base64.decodeBase64(inputJson.getString(Fields.file));
-		// save the file to disk
-		this.file = new File(this.pathToFile + this.fileName);
-		Files.write(rcvdFile, this.file);
 	}
-	
+
+	// TODO: save only byteArray and then save phisical file in putData/putBackupData
+	private void fromJSONObjectWithFile(JSONObject inputJson) throws JSONException{
+		this.idFile = inputJson.getInt(Fields.idFile);
+		this.isReplica = inputJson.getBoolean(Fields.isReplica);
+		this.author = inputJson.getString(Fields.author);
+		this.fileName = inputJson.getString(Fields.fileName);
+		this.pathToFile = inputJson.getString(Fields.pathToFile);
+		this.version = new VectorClock(inputJson.getLong(Fields.version));
+		this.file = inputJson.getString(Fields.file);
+//		byte[] rcvdFile = Base64.decodeBase64(inputJson.getString(Fields.file));
+//		// save the file to disk
+//		File filesDir = new File(this.pathToFile);
+//		if(!filesDir.exists()){
+//			if(filesDir.mkdir()){
+//				File fileToSave = new File(this.pathToFile + this.fileName);
+//				Files.write(rcvdFile, fileToSave);
+//			} else
+//				throw new IOException("An error occurs while creating directory " + this.pathToFile + ".");
+//		}
+	}
+
 	public static class Fields{
 		public static String idFile = "idFile";
 		public static String isReplica = "isReplica";

@@ -11,11 +11,13 @@ import it.cnr.isti.pad.fs.storage.*;
 public class StorageMessage extends Message {
 
 	private String Host = null;
+	private String destinationHost = null;
 	private String fileName = null;
 	private Integer Type = null;
 	private Integer Command = null;
 	private Integer IdRequest = null;
 	private Integer returnCode = null;
+	private Integer handlerCounter = 0;
 	private JSONArray Output = null;
 	private JSONArray Backup = null;
 	private Data Data = null;
@@ -28,6 +30,7 @@ public class StorageMessage extends Message {
 	 * Storage Message constructor.
 	 * 
 	 * @param host : host of the sender machine
+	 * @param destinationHost : host of the receiver machine
 	 * @param type : type of message
 	 * @param idrequest : id of the relative request (in case of type = Response)
 	 * @param Command : the command to be executed
@@ -37,8 +40,9 @@ public class StorageMessage extends Message {
 	 * @param data : data object 
 	 * @param backup : all backup copy of the machine for which this node act as replica. (Only with type PUT_BACKUP)
 	 */
-	public StorageMessage(String host, int type, int idrequest, int Command, int returnCode, JSONArray output, String filename, Data data, JSONArray Backup){
+	public StorageMessage(String host, String destinationHost, int type, int idrequest, int Command, int returnCode, JSONArray output, String filename, Data data, JSONArray Backup){
 		this.Host = host;
+		this.destinationHost = destinationHost;
 		this.Type = type;
 		this.IdRequest = idrequest;
 		this.returnCode = returnCode;
@@ -47,6 +51,22 @@ public class StorageMessage extends Message {
 		this.Data = data;
 		this.fileName = filename;
 		this.Backup = Backup;
+	}
+	
+	public Integer getHandlerCounter() {
+		return handlerCounter;
+	}
+
+	public void setHandlerCounter(Integer handlerCounter) {
+		this.handlerCounter = handlerCounter;
+	}
+
+	public String getDestinationHost() {
+		return destinationHost;
+	}
+
+	public void setDestinationHost(String destinationHost) {
+		this.destinationHost = destinationHost;
 	}
 
 	public JSONArray getBackup() {
@@ -166,8 +186,12 @@ public class StorageMessage extends Message {
 		obj.put(StorageMessage.Fields.RETURNCODE, returnCode);
 		if(this.Output != null)
 			obj.put(StorageMessage.Fields.OUTPUT, Output);
-		if(this.Data != null)
-			obj.put(StorageMessage.Fields.DATA, Data.toJSONObjectWithFile());
+		if(this.Data != null){
+			if(this.Data.getFile() != null){
+				obj.put(StorageMessage.Fields.DATA, Data.toJSONObjectWithFile());
+			} else
+				obj.put(StorageMessage.Fields.DATA, Data.toJSONObject());
+		}
 		if(this.fileName != null)
 			obj.put(StorageMessage.Fields.FILENAME, fileName);
 		if(this.Backup != null)

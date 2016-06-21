@@ -44,7 +44,7 @@ public class GossipResourceService {
 				GossipResourceService.LOGGER.error("Error while starting the gossip service: " + e.getMessage());
 			}
 		} else {
-			GossipResourceService.LOGGER.info("The gossip.conf file is not found.\n\nEither specify the path to the startup settings file or place the gossip.conf file in the same folder as the JAR file.");
+			GossipResourceService.LOGGER.info("The gossip.conf file is not found.\nEither specify the path to the startup settings file or place the gossip.conf file in the same folder as the JAR file.");
 		}
 	}
 	

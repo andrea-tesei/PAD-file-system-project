@@ -20,13 +20,13 @@ public class UDPServer implements IUDPSocket {
 	private String serverName = "";
 	private DatagramSocket dgsocket = null;
 	public static final Logger LOGGER = Logger.getLogger(UDPServer.class);
-	
+
 	public UDPServer() throws UnknownHostException, SocketException {
 		this.serverName = StorageNode.grs.getGossipService().get_gossipManager().getMyself().getHost();
 		UDPServer.LOGGER.info("Starting UDP server at: " + this.serverName);
 		this.dgsocket = new DatagramSocket(this.localPort);
 	}
-	
+
 	@Override
 	public boolean sendPacket(byte[] msg, SocketAddress addr) {
 		try (DatagramSocket socket = new DatagramSocket()) {
@@ -50,46 +50,40 @@ public class UDPServer implements IUDPSocket {
 		}
 		return true;
 	}
-	
+
 	@Override
-	public JSONObject receivePacket() throws JSONException {
+	public JSONObject receivePacket() throws JSONException, IOException {
 		String receivedMessage = "";
 		DatagramPacket p = null;
-		try {
-			byte[] buf = new byte[this.dgsocket.getReceiveBufferSize()];
-			p = new DatagramPacket(buf, buf.length);
-			this.dgsocket.receive(p);
+		byte[] buf = new byte[this.dgsocket.getReceiveBufferSize()];
+		p = new DatagramPacket(buf, buf.length);
+		this.dgsocket.receive(p);
 
-			// Retrieving packet length
-			int packet_length = 0;
-			for (int i = 0; i < 4; i++) {
-				int shift = (4 - 1 - i) * 8;
-				packet_length += (buf[i] & 0x000000FF) << shift;
-			}
-			
-			// Read content of the message
-			byte[] json_bytes = new byte[packet_length];
-			for (int i = 0; i < packet_length; i++) {
-				json_bytes[i] = buf[i + 4];
-			}
-			receivedMessage = new String(json_bytes);
-		} catch (IOException e) {
-			e.printStackTrace();
-			UDPServer.LOGGER.error("An error occurred while receiving packet from: " + p.getAddress().getHostAddress() + " : " + e.getMessage());
-			return null;
+		// Retrieving packet length
+		int packet_length = 0;
+		for (int i = 0; i < 4; i++) {
+			int shift = (4 - 1 - i) * 8;
+			packet_length += (buf[i] & 0x000000FF) << shift;
 		}
+
+		// Read content of the message
+		byte[] json_bytes = new byte[packet_length];
+		for (int i = 0; i < packet_length; i++) {
+			json_bytes[i] = buf[i + 4];
+		}
+		receivedMessage = new String(json_bytes);
 		return new JSONObject(receivedMessage);
 	}
 
-	
+
 	@Override
 	public void closeConnection(){
 		this.dgsocket.close();
 		this.dgsocket = null;
 	}
-	
 
-	
+
+
 	public int getLocalPort() {
 		return localPort;
 	}

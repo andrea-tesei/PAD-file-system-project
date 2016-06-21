@@ -13,8 +13,8 @@ import com.google.code.gossip.manager.GossipManager;
 
 import it.cnr.isti.pad.fs.entry.App;
 import it.cnr.isti.pad.fs.event.OnMessageReceivedListener;
+import it.cnr.isti.pad.fs.runnables.StorageReceiverThread;
 import it.cnr.isti.pad.fs.udpsocket.StorageMessage;
-import it.cnr.isti.pad.fs.udpsocket.StorageReceiverThread;
 import it.cnr.isti.pad.fs.udpsocket.UDPServer;
 
 public class StorageReceiverThreadImpl extends StorageReceiverThread {

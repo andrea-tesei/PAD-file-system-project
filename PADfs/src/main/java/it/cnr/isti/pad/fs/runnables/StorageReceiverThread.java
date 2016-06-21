@@ -1,5 +1,6 @@
-package it.cnr.isti.pad.fs.udpsocket;
+package it.cnr.isti.pad.fs.runnables;
 
+import java.io.IOException;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -9,6 +10,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import it.cnr.isti.pad.fs.entry.App;
+import it.cnr.isti.pad.fs.udpsocket.UDPServer;
 import it.cnr.isti.pad.fs.udpsocket.impl.StorageReceiverThreadImpl;
 
 abstract public class StorageReceiverThread implements Runnable {
@@ -35,6 +37,11 @@ abstract public class StorageReceiverThread implements Runnable {
 			} catch (JSONException e) {
 				e.printStackTrace();
 				StorageReceiverThread.LOGGER.error("Error while processing received message. Error: " + e.getMessage());
+			} catch (IOException e) {
+				if(e.getMessage().equals("Socket closed"))
+					StorageReceiverThread.LOGGER.info("The socket is closed.");
+				else
+					e.printStackTrace();
 			}
 		}
 	}

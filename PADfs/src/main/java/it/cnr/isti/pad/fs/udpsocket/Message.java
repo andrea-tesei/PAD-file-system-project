@@ -16,7 +16,7 @@ public class Message {
 		public static final int UPDATE_BACKUP = 12; // Send single file update to replica's node
 		public static final int DELETE_BACKUP = 13; // Delete single backup copy 
 		public static final int ERASE_BACKUP = 15;
-		public static final int ASK_FOR_BACKUP = 14; // Ask for fresh backup copy: used on Startup
+		public static final int BACKUP_BACK = 14; // Return back replica files
 		public static final int CONFLICT_RESOLUTION = 11;
 	}
 
@@ -24,6 +24,9 @@ public class Message {
 		public static final int OK = 8;
 		public static final int ERROR = 9;
 		public static final int NOT_EXISTS = 10;
+		public static final int HOLD_BACKUP = 16;
+		public static final int ACCEPTED_TO_CHECK = 17;
+		public static final int CONFLICTS_EXISTS = 18;
 	}
 	
 }

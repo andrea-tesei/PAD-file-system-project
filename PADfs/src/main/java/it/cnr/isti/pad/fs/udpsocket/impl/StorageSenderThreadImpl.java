@@ -1,8 +1,9 @@
 package it.cnr.isti.pad.fs.udpsocket.impl;
 
 import java.util.ArrayList;
+
+import it.cnr.isti.pad.fs.runnables.StorageSenderThread;
 import it.cnr.isti.pad.fs.udpsocket.StorageMessage;
-import it.cnr.isti.pad.fs.udpsocket.StorageSenderThread;
 
 public class StorageSenderThreadImpl extends StorageSenderThread {
 	
