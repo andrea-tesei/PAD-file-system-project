@@ -4,3 +4,7 @@
 .classpath
 putFreshJar.sh
 .DS_Store
+gossip.conf
+BACKUP_BACK+GossipEvent.java
+backup/
+padfs.log
