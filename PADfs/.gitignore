@@ -8,3 +8,4 @@ gossip.conf
 BACKUP_BACK+GossipEvent.java
 backup/
 padfs.log
+gossipEventPreFix.java

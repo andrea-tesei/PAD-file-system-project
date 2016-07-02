@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.json.JSONObject;
+
 import voldemort.utils.Utils;
 
 import com.google.common.collect.Maps;
@@ -60,6 +62,14 @@ public class VectorClock implements Version, Serializable
     {
         this.versionMap = new TreeMap<Short, Long>();
         this.timestamp = timestamp;
+    }
+    
+    public VectorClock(JSONObject input){
+    	this.versionMap = new TreeMap<Short, Long>();
+    	this.timestamp = input.getLong("timestamp");
+    	JSONObject versions = input.getJSONObject("versionmap");
+    	for(String key : versions.keySet())
+    		versionMap.put(Short.parseShort(key), versions.getLong(key));
     }
 
     /**
@@ -170,7 +180,21 @@ public class VectorClock implements Version, Serializable
         builder.append(" ts:" + timestamp);
         return builder.toString();
     }
-
+    
+    public JSONObject toJSONObject(){
+    	JSONObject retObj = new JSONObject();
+    	JSONObject versions = new JSONObject();
+    	this.versionMap.keySet().forEach(key -> 
+    	{
+    		StringBuilder builder = new StringBuilder();
+    		builder.append(key);
+    		versions.put(builder.toString(), versionMap.get(key));
+    	});
+    	retObj.put("timestamp", this.timestamp);
+    	retObj.put("versionmap", versions);
+    	return retObj;
+    }
+    
     public long getMaxVersion() 
     {
         long max = -1;
