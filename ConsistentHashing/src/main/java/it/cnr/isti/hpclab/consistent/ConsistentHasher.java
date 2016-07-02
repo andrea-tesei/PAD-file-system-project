@@ -101,6 +101,15 @@ public interface ConsistentHasher<B, M>
 	List<B> getAllBuckets();
 	
 	/**
+	 * Returns all virtual buckets that are stored. If there are no buckets, returns an
+	 * empty list.
+	 * 
+	 * @param bucketName
+	 * @return all virtual buckets that are stored, otherwise an empty list.
+	 */
+	List<ByteBuffer> getAllVirtualBucketsFor(B bucketName);
+	
+	/**
 	 * Returns the next key greater than or equal to the given key. Returns
 	 * null in case of error and fromBucket in case of NOT_EXISTS error on
 	 * fromBucket.
@@ -108,9 +117,17 @@ public interface ConsistentHasher<B, M>
 	 * @param fromBucket: the key from which start
 	 * @return the next key greater than or equal to fromBucket
 	 */
-	B getDescendantBucketKey(B fromBucket);
+	B getDescendantBucketKey(B fromBucket, ByteBuffer VirtNode);
 	
-	B getLowerKey(B fromBucket);
+	/**
+	 * Returns the prev key greater than or equal to the given key (in particular taking into . Returns
+	 * null in case of error and fromBucket in case of NOT_EXISTS error on
+	 * fromBucket.
+	 * 
+	 * @param fromBucket: the key from which start
+	 * @return the next key greater than or equal to fromBucket
+	 */
+	B getLowerKey(B fromBucket, ByteBuffer VirtNode);
 
 	/**
 	 * This fetches the members for the given bucket from the given members
@@ -123,6 +140,32 @@ public interface ConsistentHasher<B, M>
 	 * @throws NullPointerException  if any of the arguments is null.
 	 */
 	List<M> getMembersFor(B bucketName, List<? extends M> members);
+	
+	/**
+	 * This fetches the members for the given virtual bucket from the given members
+	 * list. This method does not use the members which are already stored on
+	 * this instance.
+	 * 
+	 * @param bucketName
+	 * @param virtBucket: index of the virtual bucket considered
+	 * @param members
+	 * @return
+	 * @throws NullPointerException  if any of the arguments is null.
+	 */
+	List<M> getMembersForVirtualBucket(B bucketName, ByteBuffer virtBucket, List<? extends M> members);
+	
+	/**
+	 * This fetches the members for the given new bucket (case of new node) from the given members
+	 * list. This method does not use the members which are already stored on
+	 * this instance.
+	 * 
+	 * @param myBucketName
+	 * @param newBucket
+	 * @param members
+	 * @return
+	 * @throws NullPointerException  if any of the arguments is null.
+	 */
+	List<M> getMembersForNewBackupBucket(B myBucketName, B newBucket, List<? extends M> members);
 
 	/**
 	 * Returns all members that are stored in this instance. If there are no
