@@ -43,10 +43,9 @@ abstract public class StorageSenderThread implements Runnable {
 				{
 					try {
 						StorageSenderThread.LOGGER.info("Sending message to " + ip + " " + request.toJSONObject().toString());
-						clientsHandlerSocket.sendPacket(request.toJSONObjectWithFile().toString().getBytes(), addressForSend);
+						clientsHandlerSocket.sendPacket(request.toJSONObject().toString().getBytes(), addressForSend);
 					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						System.err.println("The given file is too large. Please respect the maximum size of 65,507 bytes.");
 						StorageSenderThread.LOGGER.error("Error while parsing send request message to: " + ip + "; Error: " + e.getMessage());
 					}
 				});

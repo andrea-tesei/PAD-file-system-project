@@ -157,27 +157,7 @@ public class StorageMessage extends Message {
 			this.Backup = inputObj.getJSONArray(StorageMessage.Fields.BACKUP);
 	}
 	
-	
 	public JSONObject toJSONObject() throws JSONException{
-		JSONObject obj = new JSONObject();
-		obj.put(StorageMessage.Fields.IDREQ, IdRequest);
-		obj.put(StorageMessage.Fields.HOST, Host);
-		obj.put(StorageMessage.Fields.TYPE, Type);
-		obj.put(StorageMessage.Fields.COMMAND, Command);
-		obj.put(StorageMessage.Fields.RETURNCODE, returnCode);
-		if(this.Output != null)
-			obj.put(StorageMessage.Fields.OUTPUT, Output);
-		if(this.Data != null)
-			obj.put(StorageMessage.Fields.DATA, Data.toJSONObject());
-		if(this.fileName != null)
-			obj.put(StorageMessage.Fields.FILENAME, fileName);
-		if(this.Backup != null)
-			obj.put(StorageMessage.Fields.BACKUP, Backup);
-		return obj;
-
-	}
-	
-	public JSONObject toJSONObjectWithFile() throws JSONException{
 		JSONObject obj = new JSONObject();
 		obj.put(StorageMessage.Fields.IDREQ, IdRequest);
 		obj.put(StorageMessage.Fields.HOST, Host);

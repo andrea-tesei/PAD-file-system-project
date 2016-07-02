@@ -50,11 +50,9 @@ public class Data {
 	 * @throws JSONException : if an error occurs while parsing JSON
 	 * @throws IOException : if an error occurs while writing/reading Data locally
 	 */
-	public Data(JSONObject inputDataFromMessage) throws JSONException, IOException{
-		if(inputDataFromMessage.has(Data.Fields.file)){
-			this.fromJSONObjectWithFile(inputDataFromMessage);
-		} else
-			this.fromJSONObject(inputDataFromMessage);
+	public Data(JSONObject inputDataFromMessage) throws JSONException{
+		this.conflict = new ArrayList<Data>();
+		this.fromJSONObject(inputDataFromMessage);
 	}
 	
 	public ArrayList<Data> getConflicts(){
@@ -145,7 +143,8 @@ public class Data {
 			obj.put(Fields.author, this.author);
 			obj.put(Fields.fileName, this.fileName);
 			obj.put(Fields.pathToFile, this.pathToFile);
-			obj.put(Fields.version, this.version.getTimestamp());
+			if(this.version != null)
+				obj.put(Fields.version, this.version.toJSONObject());
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -163,13 +162,13 @@ public class Data {
 			obj.put(Fields.author, this.author);
 			obj.put(Fields.fileName, this.fileName);
 			obj.put(Fields.pathToFile, this.pathToFile);
-			obj.put(Fields.version, this.version.getTimestamp());
+			if(this.version != null)
+				obj.put(Fields.version, this.version.toJSONObject());
 			if(this.file != null)
 				obj.put(Fields.file, this.file);
 			else
 				throw new IOException("The given file does not exists.");
 		} catch (JSONException | IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			App.LOGGER.error("Error while serializing Data object.");
 			return null;
@@ -178,34 +177,50 @@ public class Data {
 	}
 
 	private void fromJSONObject(JSONObject inputJson) throws JSONException{
-		this.idFile = inputJson.getInt(Fields.idFile);
+		if(inputJson.has(Fields.idFile))
+			this.idFile = inputJson.getInt(Fields.idFile);
+		else
+			this.idFile = -1;
 		this.isReplica = inputJson.getBoolean(Fields.isReplica);
 		this.author = inputJson.getString(Fields.author);
 		this.fileName = inputJson.getString(Fields.fileName);
 		this.pathToFile = inputJson.getString(Fields.pathToFile);
-		this.version = new VectorClock(inputJson.getLong(Fields.version));
+		if(inputJson.has(Fields.version))
+			this.version = new VectorClock(inputJson.getJSONObject(Fields.version));
+		else
+			this.version = null;
+		if(inputJson.has(Fields.conflict)){
+			for(Object dataOfConflict : inputJson.getJSONArray(Fields.conflict)){
+				this.conflict.add(new Data((JSONObject) dataOfConflict));
+			}
+		}
+		if(inputJson.has(Fields.file))
+			this.file = inputJson.getString(Fields.file);
 	}
 
-	// TODO: save only byteArray and then save phisical file in putData/putBackupData
-	private void fromJSONObjectWithFile(JSONObject inputJson) throws JSONException{
-		this.idFile = inputJson.getInt(Fields.idFile);
-		this.isReplica = inputJson.getBoolean(Fields.isReplica);
-		this.author = inputJson.getString(Fields.author);
-		this.fileName = inputJson.getString(Fields.fileName);
-		this.pathToFile = inputJson.getString(Fields.pathToFile);
-		this.version = new VectorClock(inputJson.getLong(Fields.version));
-		this.file = inputJson.getString(Fields.file);
-//		byte[] rcvdFile = Base64.decodeBase64(inputJson.getString(Fields.file));
-//		// save the file to disk
-//		File filesDir = new File(this.pathToFile);
-//		if(!filesDir.exists()){
-//			if(filesDir.mkdir()){
-//				File fileToSave = new File(this.pathToFile + this.fileName);
-//				Files.write(rcvdFile, fileToSave);
-//			} else
-//				throw new IOException("An error occurs while creating directory " + this.pathToFile + ".");
-//		}
-	}
+//	// TODO: save only byteArray and then save phisical file in putData/putBackupData
+//	private void fromJSONObjectWithFile(JSONObject inputJson) throws JSONException{
+//		this.idFile = inputJson.getInt(Fields.idFile);
+//		this.isReplica = inputJson.getBoolean(Fields.isReplica);
+//		this.author = inputJson.getString(Fields.author);
+//		this.fileName = inputJson.getString(Fields.fileName);
+//		this.pathToFile = inputJson.getString(Fields.pathToFile);
+//		if(inputJson.has(Fields.version))
+//			this.version = new VectorClock(inputJson.getJSONObject(Fields.version));
+//		else
+//			this.version = new VectorClock();
+//		this.file = inputJson.getString(Fields.file);
+////		byte[] rcvdFile = Base64.decodeBase64(inputJson.getString(Fields.file));
+////		// save the file to disk
+////		File filesDir = new File(this.pathToFile);
+////		if(!filesDir.exists()){
+////			if(filesDir.mkdir()){
+////				File fileToSave = new File(this.pathToFile + this.fileName);
+////				Files.write(rcvdFile, fileToSave);
+////			} else
+////				throw new IOException("An error occurs while creating directory " + this.pathToFile + ".");
+////		}
+//	}
 
 	public static class Fields{
 		public static String idFile = "idFile";
@@ -215,6 +230,7 @@ public class Data {
 		public static String pathToFile = "filepath";
 		public static String version = "version";
 		public static String file = "file";
+		public static String conflict = "conflict";
 	}
 
 }

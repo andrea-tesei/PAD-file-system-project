@@ -5,49 +5,25 @@ import java.io.IOException;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
-import org.json.JSONException;
-import org.json.JSONObject;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
 
-import com.google.code.gossip.GossipService;
-import com.google.common.io.Files;
-
-import it.cnr.isti.pad.fs.event.OnMessageReceivedListener;
+import it.cnr.isti.hpclab.consistent.ConsistentHasher;
+import it.cnr.isti.pad.fs.api.ApiApp;
 import it.cnr.isti.pad.fs.runnables.StorageShutdownThread;
 import it.cnr.isti.pad.fs.storage.StorageNode;
-import it.cnr.isti.pad.fs.udpsocket.StorageMessage;
-import it.cnr.isti.pad.fs.udpsocket.UDPClientsHandler;
-import it.cnr.isti.pad.fs.udpsocket.UDPServer;
-import it.cnr.isti.pad.fs.udpsocket.impl.StorageReceiverThreadImpl;
-import it.cnr.isti.pad.fs.udpsocket.impl.StorageSenderThreadImpl;
 
-public class App implements OnMessageReceivedListener
+public class App
 {
 	public static final Logger LOGGER = Logger.getLogger(App.class);
-	//	public static UDPServer udpServer = null;
-	//	public static UDPClientsHandler clientsHandlerSocket = null; 
-	//	
-	//	private static StorageSenderThreadImpl sendert = null;
-	//	private static StorageReceiverThreadImpl receivert = null;
 
-
-	public App(){
-		//		sendert = new StorageSenderThreadImpl();
-		//		try {
-		//			receivert = new StorageReceiverThreadImpl();
-		//			receivert.addListener(this);
-		//		} catch (UnknownHostException | SocketException e) {
-		//			// TODO Auto-generated catch block
-		//			e.printStackTrace();
-		//		}
-	}
-
+	public App(){ }
+	
 	public static void main( String[] args )
 	{
 
@@ -63,10 +39,71 @@ public class App implements OnMessageReceivedListener
 		org.apache.log4j.PropertyConfigurator.configure(props);
 
 		File configFile = null;
-
+		SpringApplication.run(ApiApp.class, args);
+//		int virt = (int) (Math.log(5) / Math.log(2));
+//		
+//		ConsistentHasher<String, String> cHasherzzz = new ConsistentHasherImpl<>(
+//				virt,
+//				ConsistentHasher.getStringToBytesConverter(), 
+//				ConsistentHasher.getStringToBytesConverter(), 
+//				ConsistentHasher.SHA1);
+//		
+////		// TODO: add all ids and try here
+//		String node1 = "e17959ba-387f-11e6-ac61-9e71128cae77";
+//		String node2 = "e1795dde-387f-11e6-ac61-9e71128cae77";
+//		String node3 = "e1795f8c-387f-11e6-ac61-9e71128cae77";
+//		String node4 = "e17964dc-387f-11e6-ac61-9e71128cae77";
+//		String node5 = "e1796676-387f-11e6-ac61-9e71128cae77";
+//		
+//		cHasherzzz.addBucket(node1);
+//		cHasherzzz.addBucket(node2);
+//		cHasherzzz.addBucket(node3);
+//		cHasherzzz.addBucket(node4);
+//		cHasherzzz.addBucket(node5);
+//		
+//		List<ByteBuffer> virtualBucketsNode1 = cHasherzzz.getAllVirtualBucketsFor(node1);
+//		List<ByteBuffer> virtualBucketsNode4 = cHasherzzz.getAllVirtualBucketsFor(node4);
+//		List<String> files = new ArrayList<>();
+//		files.add("padfs.log");
+//		
+//		
+//		
+//		for(ByteBuffer virtualb : virtualBucketsNode4){
+//			System.out.println("Descendant bucket is : " + cHasherzzz.getDescendantBucketKey(node4, virtualb));
+//			System.out.println("Corresponding file to put in there is: " + ((cHasherzzz.getMembersForVirtualBucket(node4, virtualb, files).isEmpty()) ? "null" : cHasherzzz.getMembersForVirtualBucket(node4, virtualb, files)));
+//		}
+//		
+//		
+//		
+//		
+//		
+//		System.out.println("");
+//		
+		
+		// TODO: test new consistenthashing function + test PUT and calculate next and prev
+		// getAllVirtualBucketsFor ok, getMemmbersForVirtualBucket ok, 
+//		cHasherzzz.getAllVirtualBucketsFor(node1).forEach(b -> System.out.println(b));
+//		String data = "Anna Frank bugiardona";
+//		List<String> memb = new ArrayList<String>();
+//		memb.add(data);
+//		ArrayList<ByteBuffer> selectedKey = new ArrayList<>();
+//		cHasherzzz.getAllBuckets().forEach(bucketName -> 
+//		{
+//			List<ByteBuffer> virtualNodes = cHasherzzz.getAllVirtualBucketsFor(bucketName);
+//			virtualNodes.forEach(virtNode ->
+//			{
+//				if(!cHasherzzz.getMembersForVirtualBucket(bucketName, virtNode, memb).isEmpty()){
+//					selectedKey.add(virtNode);
+////					memb.add(bucketName);
+//				}
+//			});
+//		});
+//		selectedKey.forEach(key -> System.out.println("The virtual node code is: " + key));
+//		memb.forEach(s -> System.out.println(s));
+				
+//		System.exit(0);
 		if (args.length == 1) {
 			configFile = new File("./" + args[0]);
-			//App.grs = new GossipResourceService(configFile);
 			try {
 				StorageNode node = new StorageNode(configFile);
 				Runtime.getRuntime().addShutdownHook(new Thread(new StorageShutdownThread(node)));
@@ -141,62 +178,6 @@ public class App implements OnMessageReceivedListener
 			System.err.println("Error: settings file is missing. You must specify a configuration file.");
 			return;
 		}
-
-	}
-
-	public static class UDPClientRunnable implements Runnable{
-
-		@Override
-		public void run() {
-			JSONObject sendMsg = new JSONObject();
-			//    		try {
-			//				File file = new File("./Coupon.pdf");
-			//				sendMsg.put("host", App.udpServer.getServerName());
-			//				sendMsg.put("type", "REQUEST");
-			//				sendMsg.put("command", "GET");
-			//				byte[] provaFileBA = Files.toByteArray(file);
-			//				sendMsg.put("filename", file.getName());
-			//				sendMsg.put("file",Base64.encodeBase64String(provaFileBA));
-			//			} catch (JSONException | IOException e) {
-			//				// TODO Auto-generated catch block
-			//				e.printStackTrace();
-			//				App.LOGGER.error("The system encountered a problem while packeting your message. Please try again later.");
-			//			} 
-			//			App.clientsHandlerSocket.getNodes().forEach((ip,info) -> App.clientsHandlerSocket.sendPacket(sendMsg.toString().getBytes(), info.getRemoteServerAddr()));
-
-			//    		}
-
-		}
-	}
-
-	public static class UDPServerRunnable implements Runnable{
-
-		@Override
-		public void run() {
-
-			while(true){ // trova modo piu furbo di controllare il thread
-				//    			JSONObject rcvdJson = null;
-				//    			String host = "";
-				//    			try {
-				//    				JSONObject receivedPacket = App.udpServer.receivePacket();
-				////    				rcvdJson = new JSONObject(receivedPacket);
-				//    				host = rcvdJson.getString("host");
-				//    				byte[] rcvdFile = Base64.decodeBase64(rcvdJson.getString("file"));
-				//    				// save the file to disk
-				//    				File saveFile = new File("./gossipzzz.pdf");
-				//    				Files.write(rcvdFile, saveFile);
-				//    				App.LOGGER.info("Received packet from: " + host + "  :  " + rcvdJson.getString("type") + " " + rcvdJson.getString("command")); // new String(rcvpacket.getData(), rcvpacket.getOffset(), rcvpacket.getLength(), "UTF-8")
-				//    			} catch (JSONException | IOException e) {
-				//    				e.printStackTrace();
-				//    				App.LOGGER.error("The system encountered a problem while processing received json. Packet from: " + host);
-				//    			}
-			}
-		}
-	}
-
-	@Override
-	public void onReceivedMessage(StorageMessage msg) {
-		// TODO Auto-generated method stub
 
 	}
 
