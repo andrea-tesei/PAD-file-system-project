@@ -548,7 +548,7 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 					myFiles.put(dataFile.getFileName(), copyOfConflict);
 					if(dataFile.getFile().equals(copyOfConflict.getFile()))
 						// if the two files are equal, merge and do nothing
-						System.out.println("Diocarosouguali " + dataFile.getFileName());
+						System.out.println("The two given files have the same contents. Filename = " + dataFile.getFileName());
 					idRequestForUpdateBackup = StorageNode.requestIDCounter.getAndIncrement();
 					// Send updated value to backup copy
 					if(myFiles.get(dataFile.getFileName()).hasConflict()){
@@ -1172,10 +1172,8 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 				StorageNode.cHasher.getAllVirtualBucketsFor(myId).forEach(virtBucket -> 
 				{
 					if(StorageNode.cHasher.getDescendantBucketKey(myId, virtBucket).equals(member.getId())){
-						System.out.println("Nuova replica");
 						virtBucketForUpdateReplica.add(virtBucket);
-					} else
-						System.out.println("niente replicaaaa");
+					}
 				});
 				StorageNode.cHasher.removeBucket(member.getId());
 				// drop all pending request directed to this node
