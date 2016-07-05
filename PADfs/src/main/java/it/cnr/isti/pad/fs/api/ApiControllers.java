@@ -90,7 +90,7 @@ public class ApiControllers {
 						idRequest,
 						Message.Command.GET,
 						ReturnCode.ERROR,
-						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the GET request within 10 seconds. Please retry.")),
+						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the request within 10 seconds. Please retry.")),
 						fileName,
 						null,
 						null); 
@@ -154,15 +154,15 @@ public class ApiControllers {
 			String ipRemoteNode = StorageNode.getIPFromID(bucketFor.get(0));
 			int idRequest = StorageNode.requestIDCounter.getAndIncrement();
 			StorageMessage remoteConflictResolutionMSG = new StorageMessage(StorageNode.myHost,
-																		ipRemoteNode,
-																		Message.Type.REQUEST, 
-																		idRequest, 
-																		Message.Command.CONFLICT_RESOLUTION, 
-																		-1, 
-																		new JSONArray().put(tsChoosen), 
-																		fileName, 
-																		null, 
-																		null);
+					ipRemoteNode,
+					Message.Type.REQUEST, 
+					idRequest, 
+					Message.Command.CONFLICT_RESOLUTION, 
+					-1, 
+					new JSONArray().put(tsChoosen), 
+					fileName, 
+					null, 
+					null);
 			StorageNode.pendingRequest.put(idRequest, remoteConflictResolutionMSG);
 			StorageNode.addRequestToQueue(remoteConflictResolutionMSG, ipRemoteNode);
 			StorageNode.executeSenderThread();
@@ -184,7 +184,7 @@ public class ApiControllers {
 						idRequest,
 						Message.Command.CONFLICT_RESOLUTION,
 						ReturnCode.ERROR,
-						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the CONFLICT_RESOLUTION request within 10 seconds. Please retry.")),
+						new JSONArray().put(new JSONObject().put("error", "The remote host did not receive the request within 10 seconds. Please retry.")),
 						fileName,
 						null,
 						null); 
@@ -203,19 +203,47 @@ public class ApiControllers {
 						null);
 			else {
 				// Check if some conflict is present in the requested file
-				int idRequestForUpdateBackup = StorageNode.resolveConflictResolution(tsChoosen, fileName);		
-				StorageNode.executeSenderThread();
-				StorageNode.executeResponseHandlerThread();
-				response = new StorageMessage(StorageNode.myHost,
-						"",
-						Message.Type.RESPONSE, 
-						-1, 
-						Message.Command.CONFLICT_RESOLUTION, 
-						Message.ReturnCode.ERROR, 
-						null, 
-						fileName, 
-						null, 
-						null);
+				int idRequestForUpdateBackup = StorageNode.resolveConflictResolution(tsChoosen, fileName);
+				JSONArray output = new JSONArray();
+				if(idRequestForUpdateBackup == -1){
+					output.put(new JSONObject().put("error", "The system encountered an error while resolving conflict for file " + fileName));
+					response = new StorageMessage(StorageNode.myHost,
+							"",
+							Message.Type.RESPONSE, 
+							-1, 
+							Message.Command.CONFLICT_RESOLUTION, 
+							Message.ReturnCode.ERROR, 
+							output, 
+							fileName, 
+							null, 
+							null);
+				} else if(idRequestForUpdateBackup == -2){
+					output.put(new JSONObject().put("status", "The node " + StorageNode.myHost + " seems to be the only one in the network. From now, consistency and availability are not guaranteed."));
+					response = new StorageMessage(StorageNode.myHost,
+							"",
+							Message.Type.RESPONSE, 
+							-1, 
+							Message.Command.CONFLICT_RESOLUTION, 
+							Message.ReturnCode.OK, 
+							output, 
+							fileName, 
+							null, 
+							null);
+				} else {
+					output.put(new JSONObject().put("status", "ok"));
+					StorageNode.executeSenderThread();
+					StorageNode.executeResponseHandlerThread();
+					response = new StorageMessage(StorageNode.myHost,
+							"",
+							Message.Type.RESPONSE, 
+							-1, 
+							Message.Command.CONFLICT_RESOLUTION, 
+							Message.ReturnCode.OK, 
+							output, 
+							fileName, 
+							null, 
+							null);
+				}
 			}
 		}
 		return convertJsonFormat(response.toJSONObject()).toString();
@@ -264,7 +292,7 @@ public class ApiControllers {
 						-1, 
 						Message.Command.PUT, 
 						Message.ReturnCode.ERROR, 
-						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the PUT request within 10 secs. Please retry.")), 
+						new JSONArray().put(new JSONObject().put("error", "The remote host did not receive the request within 10 seconds. Please retry.")), 
 						fileName, 
 						null, 
 						null);
@@ -276,7 +304,9 @@ public class ApiControllers {
 				JSONArray output = new JSONArray();
 				if(idRequestForUpdateBackup == -1)
 					output.put(new JSONObject().put("error", "An error occurred while storing the given file."));
-				else
+				else if(idRequestForUpdateBackup == -2){
+					output.put(new JSONObject().put("status", "The node " + StorageNode.myHost + " seems to be the only one in the network. From now, consistency and availability is not guaranteed."));
+				} else
 					output.put(new JSONObject().put("status", "ok"));
 				StorageNode.executeSenderThread();
 				StorageNode.executeResponseHandlerThread();
@@ -291,7 +321,6 @@ public class ApiControllers {
 						null, 
 						null);
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				ApiControllers.LOGGER.error("A problem arise when storing file " + fileName + " in this node.");
 				response = new StorageMessage(StorageNode.myHost,
 						"",
@@ -299,7 +328,7 @@ public class ApiControllers {
 						-1, 
 						Message.Command.PUT, 
 						Message.ReturnCode.ERROR, 
-						null, 
+						new JSONArray().put(new JSONObject().put("error", "The system encountered an error while storing the given file.")), 
 						fileName, 
 						null, 
 						null);
@@ -441,7 +470,7 @@ public class ApiControllers {
 						-1,
 						Message.Command.DELETE,
 						Message.ReturnCode.ERROR,
-						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the DELETE request within 10 seconds. Please retry.")),
+						new JSONArray().put(new JSONObject().put("error", "The remote host did not receive the request within 10 seconds. Please retry.")),
 						fileNameForDelete,
 						null,
 						null); 
@@ -449,20 +478,8 @@ public class ApiControllers {
 			// Delete file on this node if exists
 			try{
 				int idRequestDeleteBackup = StorageNode.deleteData(fileNameForDelete);
-				if(idRequestDeleteBackup != -1){
-					StorageNode.addResponseToHandlerQueue(idRequestDeleteBackup);
-					StorageNode.executeResponseHandlerThread();
-					response = new StorageMessage(StorageNode.myHost,
-							"",
-							Message.Type.RESPONSE,
-							-1,
-							Message.Command.DELETE,
-							Message.ReturnCode.OK,
-							null,
-							fileNameForDelete,
-							null,
-							null);
-				} else
+				JSONArray output = new JSONArray();
+				if(idRequestDeleteBackup == -1){
 					response = new StorageMessage(StorageNode.myHost,
 							"",
 							Message.Type.RESPONSE,
@@ -473,6 +490,34 @@ public class ApiControllers {
 							fileNameForDelete,
 							null,
 							null);
+
+				} else if(idRequestDeleteBackup == -2){
+					output.put(new JSONObject().put("status", "The node " + StorageNode.myHost + " seems to be the only one in the network. From now, consistency and availability is not guaranteed."));
+					response = new StorageMessage(StorageNode.myHost,
+							"",
+							Message.Type.RESPONSE,
+							-1,
+							Message.Command.DELETE,
+							Message.ReturnCode.OK,
+							output,
+							fileNameForDelete,
+							null,
+							null);
+				}else{
+					output.put(new JSONObject().put("status", "ok"));
+					StorageNode.addResponseToHandlerQueue(idRequestDeleteBackup);
+					StorageNode.executeResponseHandlerThread();
+					response = new StorageMessage(StorageNode.myHost,
+							"",
+							Message.Type.RESPONSE,
+							-1,
+							Message.Command.DELETE,
+							Message.ReturnCode.OK,
+							output,
+							fileNameForDelete,
+							null,
+							null);
+				}
 			} catch (IOException e) {
 				response = new StorageMessage(StorageNode.myHost,
 						"",
@@ -480,7 +525,7 @@ public class ApiControllers {
 						-1,
 						Message.Command.DELETE,
 						Message.ReturnCode.ERROR,
-						new JSONArray().put(new JSONObject().put("errmsg", "An error occurred while deleting the given file. Error = " + e.getStackTrace())),
+						new JSONArray().put(new JSONObject().put("error", "An error occurred while deleting the given file. Error = " + e.getStackTrace())),
 						fileNameForDelete,
 						null,
 						null);
@@ -488,70 +533,70 @@ public class ApiControllers {
 		}
 		return convertJsonFormat(response.toJSONObject()).toString();
 	}
-	
-	static JsonNode convertJsonFormat(JSONObject json) {
-	    ObjectNode ret = JsonNodeFactory.instance.objectNode();
 
-	    @SuppressWarnings("unchecked")
-	    Iterator<String> iterator = json.keys();
-	    for (; iterator.hasNext();) {
-	        String key = iterator.next();
-	        Object value;
-	        try {
-	            value = json.get(key);
-	        } catch (JSONException e) {
-	            throw new RuntimeException(e);
-	        }
-	        if (json.isNull(key))
-	            ret.putNull(key);
-	        else if (value instanceof String)
-	            ret.put(key, (String) value);
-	        else if (value instanceof Integer)
-	            ret.put(key, (Integer) value);
-	        else if (value instanceof Long)
-	            ret.put(key, (Long) value);
-	        else if (value instanceof Double)
-	            ret.put(key, (Double) value);
-	        else if (value instanceof Boolean)
-	            ret.put(key, (Boolean) value);
-	        else if (value instanceof JSONObject)
-	            ret.put(key, convertJsonFormat((JSONObject) value));
-	        else if (value instanceof JSONArray)
-	            ret.put(key, convertJsonFormat((JSONArray) value));
-	        else
-	            throw new RuntimeException("not prepared for converting instance of class " + value.getClass());
-	    }
-	    return ret;
+	static JsonNode convertJsonFormat(JSONObject json) {
+		ObjectNode ret = JsonNodeFactory.instance.objectNode();
+
+		@SuppressWarnings("unchecked")
+		Iterator<String> iterator = json.keys();
+		for (; iterator.hasNext();) {
+			String key = iterator.next();
+			Object value;
+			try {
+				value = json.get(key);
+			} catch (JSONException e) {
+				throw new RuntimeException(e);
+			}
+			if (json.isNull(key))
+				ret.putNull(key);
+			else if (value instanceof String)
+				ret.put(key, (String) value);
+			else if (value instanceof Integer)
+				ret.put(key, (Integer) value);
+			else if (value instanceof Long)
+				ret.put(key, (Long) value);
+			else if (value instanceof Double)
+				ret.put(key, (Double) value);
+			else if (value instanceof Boolean)
+				ret.put(key, (Boolean) value);
+			else if (value instanceof JSONObject)
+				ret.put(key, convertJsonFormat((JSONObject) value));
+			else if (value instanceof JSONArray)
+				ret.put(key, convertJsonFormat((JSONArray) value));
+			else
+				throw new RuntimeException("not prepared for converting instance of class " + value.getClass());
+		}
+		return ret;
 	}
-	
+
 	static JsonNode convertJsonFormat(JSONArray json) {
-	    ArrayNode ret = JsonNodeFactory.instance.arrayNode();
-	    for (int i = 0; i < json.length(); i++) {
-	        Object value;
-	        try {
-	            value = json.get(i);
-	        } catch (JSONException e) {
-	            throw new RuntimeException(e);
-	        }
-	        if (json.isNull(i))
-	            ret.addNull();
-	        else if (value instanceof String)
-	            ret.add((String) value);
-	        else if (value instanceof Integer)
-	            ret.add((Integer) value);
-	        else if (value instanceof Long)
-	            ret.add((Long) value);
-	        else if (value instanceof Double)
-	            ret.add((Double) value);
-	        else if (value instanceof Boolean)
-	            ret.add((Boolean) value);
-	        else if (value instanceof JSONObject)
-	            ret.add(convertJsonFormat((JSONObject) value));
-	        else if (value instanceof JSONArray)
-	            ret.add(convertJsonFormat((JSONArray) value));
-	        else
-	            throw new RuntimeException("not prepared for converting instance of class " + value.getClass());
-	    }
-	    return ret;
+		ArrayNode ret = JsonNodeFactory.instance.arrayNode();
+		for (int i = 0; i < json.length(); i++) {
+			Object value;
+			try {
+				value = json.get(i);
+			} catch (JSONException e) {
+				throw new RuntimeException(e);
+			}
+			if (json.isNull(i))
+				ret.addNull();
+			else if (value instanceof String)
+				ret.add((String) value);
+			else if (value instanceof Integer)
+				ret.add((Integer) value);
+			else if (value instanceof Long)
+				ret.add((Long) value);
+			else if (value instanceof Double)
+				ret.add((Double) value);
+			else if (value instanceof Boolean)
+				ret.add((Boolean) value);
+			else if (value instanceof JSONObject)
+				ret.add(convertJsonFormat((JSONObject) value));
+			else if (value instanceof JSONArray)
+				ret.add(convertJsonFormat((JSONArray) value));
+			else
+				throw new RuntimeException("not prepared for converting instance of class " + value.getClass());
+		}
+		return ret;
 	}
 }

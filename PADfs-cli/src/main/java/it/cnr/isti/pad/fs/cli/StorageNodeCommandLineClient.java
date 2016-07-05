@@ -2,6 +2,7 @@ package it.cnr.isti.pad.fs.cli;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,6 +17,7 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,40 +60,53 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 							commandAndArgs = new ArrayList<String>();
 							commandAndArgs.add(input);
 						}
+						// TODO: in case of error check if the error is due to timeout or not. In case of timeout try another node, else give back error to the user.
+						// TODO: deal with connection refused when nodes in the list are down.
 						switch(commandAndArgs.get(0)){
 						case "GET":
 							if(commandAndArgs.size() > 1 && !commandAndArgs.get(1).equals("")){
 								String fileName = commandAndArgs.get(1);
 								StorageMessage getResponse = null;
 								for(String ip :listKnownHosts){
-									getResponse = restTemplate.getForObject("http://" + ip + ":8090/API/PADfs/GET?filename=" + fileName, StorageMessage.class);
-									if(getResponse.getRc() == Message.ReturnCode.ERROR)
-										System.out.println("The remote node " + ip + " encountered an error during GET operation for " + fileName + ". Trying another node...\n");
-									else if(getResponse.getRc() == Message.ReturnCode.NOT_EXISTS){
-										System.out.println("The requested file does not exist in the file system.\n");
-										break;
-									} else if(getResponse.getRc() == Message.ReturnCode.OK){
-										// Save file locally
-										byte[] rcvdFile = Base64.decodeBase64(getResponse.getData().getFile());
-										// save the file to disk
-										File filesDir = new File("./download");
-										try {
-											if(!filesDir.exists()){
-												filesDir.mkdir();
+									try{
+										getResponse = restTemplate.getForObject("http://" + ip + ":8090/API/PADfs/GET?filename=" + fileName, StorageMessage.class);
+										if(getResponse.getRc() == Message.ReturnCode.ERROR) {
+											if(getResponse.getOutput().get(0).has("error")){
+												if(getResponse.getOutput().get(0).get("error").equals("The remote host did not receive the request within 10 seconds. Please retry."))
+													System.out.println("The remote node did not received the request. Trying another node...\n");
+												else {
+													System.err.println("The remote node " + getResponse.getHost() + " during GET operation for " + fileName + ". Error = " + getResponse.getOutput().get(0).get("error"));
+													break;
+												}
 											}
-											File fileToSave = new File("./download/" + getResponse.getData().getFileName());
-											Files.write(fileToSave.toPath(), rcvdFile);
-											System.out.println("The requested file has been received and saved in: " + "./download/"+ getResponse.getData().getFileName() + "\n");
-										} catch (IOException e) {
-											System.err.println("An error occurs while saving file in " + "./download/" + getResponse.getData().getFileName() + "\n");
+										} else if(getResponse.getRc() == Message.ReturnCode.NOT_EXISTS){
+											System.out.println("The requested file does not exist in the file system.\n");
+											break;
+										} else if(getResponse.getRc() == Message.ReturnCode.OK){
+											// Save file locally
+											byte[] rcvdFile = Base64.decodeBase64(getResponse.getData().getFile());
+											// save the file to disk
+											File filesDir = new File("./download");
+											try {
+												if(!filesDir.exists()){
+													filesDir.mkdir();
+												}
+												File fileToSave = new File("./download/" + getResponse.getData().getFileName());
+												Files.write(fileToSave.toPath(), rcvdFile);
+												System.out.println("The requested file has been received and saved in: " + "./download/"+ getResponse.getData().getFileName() + "\n");
+											} catch (IOException e) {
+												System.err.println("An error occurs while saving file in " + "./download/" + getResponse.getData().getFileName() + "\n");
+											}
+											break;
+										} else if(getResponse.getRc() == Message.ReturnCode.CONFLICTS_EXISTS){
+											// Print all received timestamps and let user choose one of these
+											System.out.println("The requested file has some conflict that must be resolved. Look at next versions list and choose the right one:");
+											getResponse.getOutput().forEach(json -> System.out.println(fileName + ":" + json));
+											System.out.println("Once you have chosen your version, type the CONFLICT_RESOLUTION message with the name of the file and the selected version in order to perform this operation.\n");
+											break;
 										}
-										break;
-									} else if(getResponse.getRc() == Message.ReturnCode.CONFLICTS_EXISTS){
-										// Print all received timestamps and let user choose one of these
-										System.out.println("The requested file has some conflict that must be resolved. Look at next versions list and choose the right one:");
-										getResponse.getOutput().forEach(json -> System.out.println(fileName + ":" + json));
-										System.out.println("Once you have chosen your version, type the CONFLICT_RESOLUTION message with the name of the file and the selected version in order to perform this operation.\n");
-										break;
+									} catch (RestClientException e){
+										System.out.println("The node " + ip + " is down. Update your node's list file.");
 									}
 								}
 							} else 
@@ -103,21 +118,32 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 								File newFile = new File("./"+fileName);
 								if(newFile.exists()){
 									for(String ip :listKnownHosts){
-										byte[] fileBA = Files.readAllBytes(newFile.toPath());
-										MultiValueMap<String, String> mapParams = new LinkedMultiValueMap<String, String>();
-										mapParams.add("filename", fileName);
-										mapParams.add("file", Base64.encodeBase64String(fileBA));
-										String postResponseForPut = restTemplate.postForObject("http://" + ip +":8090/API/PADfs/PUT", mapParams, String.class);
-										System.out.println("Arrives: " + postResponseForPut);
-										ObjectMapper mapper = new ObjectMapper();
-									    JsonNode actualObj = mapper.readTree(postResponseForPut);
-									    System.out.println("Parsed: " + actualObj);
-									    StorageMessage getResponseForPut = new StorageMessage(actualObj);
-										if(getResponseForPut.getRc() == Message.ReturnCode.ERROR){
-											System.out.println("The remote node " + getResponseForPut.getHost() + " encountered an error during PUT operation for " + fileName + ". Trying another node...\n");
-										} else {
-											System.out.println("The remote node " + getResponseForPut.getHost() + " has stored the file " + fileName + " successfully. Message: " + getResponseForPut.getOutput() + ".\n");
-											break;
+										try{
+											byte[] fileBA = Files.readAllBytes(newFile.toPath());
+											MultiValueMap<String, String> mapParams = new LinkedMultiValueMap<String, String>();
+											mapParams.add("filename", fileName);
+											mapParams.add("file", Base64.encodeBase64String(fileBA));
+											String postResponseForPut = restTemplate.postForObject("http://" + ip +":8090/API/PADfs/PUT", mapParams, String.class);
+											System.out.println("Arrives: " + postResponseForPut);
+											ObjectMapper mapper = new ObjectMapper();
+											JsonNode actualObj = mapper.readTree(postResponseForPut);
+											System.out.println("Parsed: " + actualObj);
+											StorageMessage getResponseForPut = new StorageMessage(actualObj);
+											if(getResponseForPut.getRc() == Message.ReturnCode.ERROR){
+												if(getResponseForPut.getOutput().get(0).has("error")){
+													if(getResponseForPut.getOutput().get(0).get("error").equals("The remote host did not receive the request within 10 seconds. Please retry."))
+														System.out.println("The remote node did not received the request. Trying another node...\n");
+													else {
+														System.err.println("The remote node " + getResponseForPut.getHost() + " during PUT operation for " + fileName + ". Error = " + getResponseForPut.getOutput().get(0).get("error"));
+														break;
+													}
+												}
+											} else {
+												System.out.println("The remote node " + getResponseForPut.getHost() + " has stored the file " + fileName + " successfully. Message: " + getResponseForPut.getOutput() + ".\n");
+												break;
+											}
+										} catch (RestClientException e){
+											System.out.println("The node " + ip + " is down. Update your node's list file.");
 										}
 									}
 								} else {
@@ -128,14 +154,26 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 							break;
 						case "LIST":
 							for(String ip :listKnownHosts){
-								StorageMessage getResponseForList = restTemplate.getForObject("http://" + ip +":8090/API/PADfs/LIST", StorageMessage.class);
-								if(getResponseForList.getRc() == Message.ReturnCode.ERROR)
-									System.out.println("The remote node " + getResponseForList.getHost() + " encountered an error during LIST operation. Trying another node...\n");
-								else {
-									System.out.println("List files:");
-									getResponseForList.getOutput().forEach(json -> System.out.println(json));
-									System.out.println("");
-									break;
+								try{
+									StorageMessage getResponseForList = restTemplate.getForObject("http://" + ip +":8090/API/PADfs/LIST", StorageMessage.class);
+									if(getResponseForList.getRc() == Message.ReturnCode.ERROR){
+										if(getResponseForList.getOutput().get(0).has("error")){
+											if(getResponseForList.getOutput().get(0).get("error").equals("The remote host did not receive the request within 10 seconds. Please retry."))
+												System.out.println("The remote node did not received the request. Trying another node...\n");
+											else {
+												System.err.println("The remote node " + getResponseForList.getHost() + " during LIST operation. Error = " + getResponseForList.getOutput().get(0).get("error"));
+												break;
+											}
+										}
+
+									} else {
+										System.out.println("List files:");
+										getResponseForList.getOutput().forEach(json -> System.out.println(json));
+										System.out.println("");
+										break;
+									}
+								} catch (RestClientException e){
+									System.out.println("The node " + ip + " is down. Update your node's list file.");
 								}
 							}
 							break;
@@ -143,15 +181,26 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 							if(commandAndArgs.size() > 1 && !commandAndArgs.get(1).equals("")){
 								String fileName = commandAndArgs.get(1);
 								for(String ip :listKnownHosts){
-									StorageMessage getResponseForDelete = restTemplate.getForObject("http://" + ip + ":8090/API/PADfs/DELETE?filename=" + fileName, StorageMessage.class);
-									if(getResponseForDelete.getRc() == Message.ReturnCode.ERROR)
-										System.out.println("The remote node " + getResponseForDelete.getHost() + " encountered an error during DELETE of " + fileName +  ". Trying another node...\n");
-									else if(getResponseForDelete.getRc() == Message.ReturnCode.NOT_EXISTS){
-										System.out.println("The requested file does not exist in the file system.\n");
-										break;
-									} else {
-										System.out.println("The remote node has completed DELETE operation of " + fileName + "\n");
-										break;
+									try{
+										StorageMessage getResponseForDelete = restTemplate.getForObject("http://" + ip + ":8090/API/PADfs/DELETE?filename=" + fileName, StorageMessage.class);
+										if(getResponseForDelete.getRc() == Message.ReturnCode.ERROR){
+											if(getResponseForDelete.getOutput().get(0).has("error")){
+												if(getResponseForDelete.getOutput().get(0).get("error").equals("The remote host did not receive the request within 10 seconds. Please retry."))
+													System.out.println("The remote node did not received the request. Trying another node...\n");
+												else {
+													System.err.println("The remote node " + getResponseForDelete.getHost() + " during DELETE operation for " + fileName + ". Error = " + getResponseForDelete.getOutput().get(0).get("error"));
+													break;
+												}
+											}
+										} else if(getResponseForDelete.getRc() == Message.ReturnCode.NOT_EXISTS){
+											System.out.println("The requested file does not exist in the file system.\n");
+											break;
+										} else {
+											System.out.println("The remote node has completed DELETE operation of " + fileName + "\n");
+											break;
+										}
+									} catch (RestClientException e){
+										System.out.println("The node " + ip + " is down. Update your node's list file.");
 									}
 								}
 							} else 
@@ -162,16 +211,26 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 								Long tsChosen = Long.parseLong(commandAndArgs.get(2));
 								String fileName = commandAndArgs.get(1);
 								for(String ip :listKnownHosts){
-									StorageMessage getResponseForConflictResolution = restTemplate.getForObject("http://" + ip +":8090/API/PADfs/ConflictResolution?filename=" + fileName + "&tschosen=" + tsChosen, StorageMessage.class);
-									if(getResponseForConflictResolution.getRc() == Message.ReturnCode.ERROR){
-										System.out.println("The remote node " + getResponseForConflictResolution.getHost() + " encountered an error during CONFLICT_RESOLUTION of " + fileName + " . Trying another node...\n");
-									} else if(getResponseForConflictResolution.getRc() == Message.ReturnCode.NOT_EXISTS){
-										System.out.println("The given filename is wrong: the file " + fileName + " does not exists in this file system.\n");
-										break;
-									} else {
-										// Ok message
-										System.out.print("The file " + fileName + " has been updated to the selected version.\n");
-										break;
+									try{
+										StorageMessage getResponseForConflictResolution = restTemplate.getForObject("http://" + ip +":8090/API/PADfs/ConflictResolution?filename=" + fileName + "&tschosen=" + tsChosen, StorageMessage.class);
+										if(getResponseForConflictResolution.getRc() == Message.ReturnCode.ERROR){
+											if(getResponseForConflictResolution.getOutput().get(0).has("error")){
+												if(getResponseForConflictResolution.getOutput().get(0).get("error").equals("The remote host did not receive the request within 10 seconds. Please retry."))
+													System.out.println("The remote node did not received the request. Trying another node...\n");
+												else {
+													System.err.println("The remote node " + getResponseForConflictResolution.getHost() + " during CONFLICT_RESOLUTION operation for " + fileName + ". Error = " + getResponseForConflictResolution.getOutput().get(0).get("error"));
+												}
+											}
+										} else if(getResponseForConflictResolution.getRc() == Message.ReturnCode.NOT_EXISTS){
+											System.out.println("The given filename is wrong: the file " + fileName + " does not exists in this file system.\n");
+											break;
+										} else {
+											// Ok message
+											System.out.print("The file " + fileName + " has been updated to the selected version.\n");
+											break;
+										}
+									} catch (RestClientException e){
+										System.out.println("The node " + ip + " is down. Update your node's list file.");
 									}
 								}
 							} else
