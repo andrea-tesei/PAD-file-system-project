@@ -73,7 +73,7 @@ public class ApiControllers {
 			StorageNode.addRequestToQueue(getRemoteFile, ipBucketForFile);
 			StorageNode.executeSenderThread();
 			int attempts = 0; 
-			while(StorageNode.pendingRequest.containsKey(idRequest) && attempts < 20){
+			while(StorageNode.pendingRequest.containsKey(idRequest) && attempts < 40){
 				try {
 					Thread.sleep(250);
 				} catch (InterruptedException e) {
@@ -90,7 +90,7 @@ public class ApiControllers {
 						idRequest,
 						Message.Command.GET,
 						ReturnCode.ERROR,
-						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the GET request within 5 seconds. Please retry.")),
+						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the GET request within 10 seconds. Please retry.")),
 						fileName,
 						null,
 						null); 
@@ -167,7 +167,7 @@ public class ApiControllers {
 			StorageNode.addRequestToQueue(remoteConflictResolutionMSG, ipRemoteNode);
 			StorageNode.executeSenderThread();
 			int attempts = 0; 
-			while(StorageNode.pendingRequest.containsKey(idRequest) && attempts < 20){
+			while(StorageNode.pendingRequest.containsKey(idRequest) && attempts < 40){
 				try {
 					Thread.sleep(250);
 				} catch (InterruptedException e) {
@@ -184,7 +184,7 @@ public class ApiControllers {
 						idRequest,
 						Message.Command.CONFLICT_RESOLUTION,
 						ReturnCode.ERROR,
-						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the CONFLICT_RESOLUTION request within 5 seconds. Please retry.")),
+						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the CONFLICT_RESOLUTION request within 10 seconds. Please retry.")),
 						fileName,
 						null,
 						null); 
@@ -247,7 +247,7 @@ public class ApiControllers {
 			StorageNode.addRequestToQueue(putRemoteFile, ipRightBucket);
 			StorageNode.executeSenderThread();
 			int attempts = 0;
-			while(StorageNode.pendingRequest.containsKey(currentIdRequest) && attempts < 20){
+			while(StorageNode.pendingRequest.containsKey(currentIdRequest) && attempts < 40){
 				try {
 					Thread.sleep(250);
 				} catch (InterruptedException e) {
@@ -264,7 +264,7 @@ public class ApiControllers {
 						-1, 
 						Message.Command.PUT, 
 						Message.ReturnCode.ERROR, 
-						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the PUT request within 5 secs. Please retry.")), 
+						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the PUT request within 10 secs. Please retry.")), 
 						fileName, 
 						null, 
 						null);
@@ -423,7 +423,7 @@ public class ApiControllers {
 			StorageNode.executeSenderThread();
 			// Wait for response
 			int attempts = 0;
-			while(StorageNode.pendingRequest.containsKey(currDeleteIdRequest) && attempts < 20){
+			while(StorageNode.pendingRequest.containsKey(currDeleteIdRequest) && attempts < 40){
 				try {
 					Thread.sleep(250);
 				} catch (InterruptedException e) {
@@ -441,7 +441,7 @@ public class ApiControllers {
 						-1,
 						Message.Command.DELETE,
 						Message.ReturnCode.ERROR,
-						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the DELETE request within 5 seconds. Please retry.")),
+						new JSONArray().put(new JSONObject().put("errmsg", "The remote host did not receive the DELETE request within 10 seconds. Please retry.")),
 						fileNameForDelete,
 						null,
 						null); 

@@ -112,11 +112,11 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 										ObjectMapper mapper = new ObjectMapper();
 									    JsonNode actualObj = mapper.readTree(postResponseForPut);
 									    System.out.println("Parsed: " + actualObj);
-									    StorageMessage arrivedMessage = new StorageMessage(actualObj);
-										if(arrivedMessage.getRc() == Message.ReturnCode.ERROR){
-											System.out.println("The remote node " + ip + " encountered an error during PUT operation for " + fileName + ". Trying another node...\n");
+									    StorageMessage getResponseForPut = new StorageMessage(actualObj);
+										if(getResponseForPut.getRc() == Message.ReturnCode.ERROR){
+											System.out.println("The remote node " + getResponseForPut.getHost() + " encountered an error during PUT operation for " + fileName + ". Trying another node...\n");
 										} else {
-											System.out.println("The remote node " + ip + " has stored the file " + fileName + " successfully.\n");
+											System.out.println("The remote node " + getResponseForPut.getHost() + " has stored the file " + fileName + " successfully. Message: " + getResponseForPut.getOutput() + ".\n");
 											break;
 										}
 									}
@@ -130,7 +130,7 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 							for(String ip :listKnownHosts){
 								StorageMessage getResponseForList = restTemplate.getForObject("http://" + ip +":8090/API/PADfs/LIST", StorageMessage.class);
 								if(getResponseForList.getRc() == Message.ReturnCode.ERROR)
-									System.out.println("The remote node " + ip + " encountered an error during LIST operation. Trying another node...\n");
+									System.out.println("The remote node " + getResponseForList.getHost() + " encountered an error during LIST operation. Trying another node...\n");
 								else {
 									System.out.println("List files:");
 									getResponseForList.getOutput().forEach(json -> System.out.println(json));
@@ -145,7 +145,7 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 								for(String ip :listKnownHosts){
 									StorageMessage getResponseForDelete = restTemplate.getForObject("http://" + ip + ":8090/API/PADfs/DELETE?filename=" + fileName, StorageMessage.class);
 									if(getResponseForDelete.getRc() == Message.ReturnCode.ERROR)
-										System.out.println("The remote node " + ip + " encountered an error during DELETE of " + fileName +  ". Trying another node...\n");
+										System.out.println("The remote node " + getResponseForDelete.getHost() + " encountered an error during DELETE of " + fileName +  ". Trying another node...\n");
 									else if(getResponseForDelete.getRc() == Message.ReturnCode.NOT_EXISTS){
 										System.out.println("The requested file does not exist in the file system.\n");
 										break;
@@ -159,13 +159,13 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 							break;
 						case "CONFLICT_RESOLUTION":
 							if(commandAndArgs.size() > 2 && !commandAndArgs.get(2).equals("")){
-								Long tsChosen = Long.parseLong(commandAndArgs.get(1));
-								String fileName = commandAndArgs.get(2);
+								Long tsChosen = Long.parseLong(commandAndArgs.get(2));
+								String fileName = commandAndArgs.get(1);
 								for(String ip :listKnownHosts){
-									StorageMessage getResponseForList = restTemplate.getForObject("http://" + ip +":8090/API/PADfs/ConflictResolution?filename=" + fileName + "&tschosen=" + tsChosen, StorageMessage.class);
-									if(getResponseForList.getRc() == Message.ReturnCode.ERROR){
-										System.out.println("The remote node " + ip + " encountered an error during CONFLICT_RESOLUTION of " + fileName + " . Trying another node...\n");
-									} else if(getResponseForList.getRc() == Message.ReturnCode.NOT_EXISTS){
+									StorageMessage getResponseForConflictResolution = restTemplate.getForObject("http://" + ip +":8090/API/PADfs/ConflictResolution?filename=" + fileName + "&tschosen=" + tsChosen, StorageMessage.class);
+									if(getResponseForConflictResolution.getRc() == Message.ReturnCode.ERROR){
+										System.out.println("The remote node " + getResponseForConflictResolution.getHost() + " encountered an error during CONFLICT_RESOLUTION of " + fileName + " . Trying another node...\n");
+									} else if(getResponseForConflictResolution.getRc() == Message.ReturnCode.NOT_EXISTS){
 										System.out.println("The given filename is wrong: the file " + fileName + " does not exists in this file system.\n");
 										break;
 									} else {
