@@ -60,8 +60,6 @@ public class StorageNodeCommandLineClient implements CommandLineRunner  {
 							commandAndArgs = new ArrayList<String>();
 							commandAndArgs.add(input);
 						}
-						// TODO: in case of error check if the error is due to timeout or not. In case of timeout try another node, else give back error to the user.
-						// TODO: deal with connection refused when nodes in the list are down.
 						switch(commandAndArgs.get(0)){
 						case "GET":
 							if(commandAndArgs.size() > 1 && !commandAndArgs.get(1).equals("")){
