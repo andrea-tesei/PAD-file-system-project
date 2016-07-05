@@ -572,6 +572,7 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 						System.out.println("The two given files have the same contents. Filename = " + dataFile.getFileName());
 					// Send updated value to backup copy
 					if(myFiles.get(dataFile.getFileName()).hasConflict()){
+						System.out.println("The given file has conflicts:");
 						for(Data conflict : myFiles.get(dataFile.getFileName()).getConflicts()){
 							System.out.println("Version=" + conflict.getVersion().toJSONObject());
 						}
