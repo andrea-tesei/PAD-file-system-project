@@ -13,6 +13,13 @@ import com.google.code.gossip.event.GossipListener;
 
 import it.cnr.isti.pad.fs.storage.StorageNode;
 
+/**
+ * GossipResourceService class.
+ * Act as a wrapper of the Gossiping service from edward capriolo's repository
+ * 
+ * @author Andrea Tesei
+ *
+ */
 public class GossipResourceService {
 
 	private static File fileSettings = null;

@@ -4,6 +4,13 @@ import java.io.IOException;
 import org.apache.log4j.Logger;
 import it.cnr.isti.pad.fs.storage.StorageNode;
 
+/**
+ * StorageShutdownThread class.
+ * Implements a Runnable which perform the shutdown of the StorageNode.
+ * 
+ * @author Andrea Tesei
+ *
+ */
 public class StorageShutdownThread implements Runnable {
 
 	private StorageNode nodeToShutdown;

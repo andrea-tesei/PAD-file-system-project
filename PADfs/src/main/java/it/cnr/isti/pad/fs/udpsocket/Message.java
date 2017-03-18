@@ -1,5 +1,11 @@
 package it.cnr.isti.pad.fs.udpsocket;
 
+/**
+ * Message class. It contains all static fields valids for a Storage Message.
+ * 
+ * @author Andrea Tesei
+ *
+ */
 public class Message {
 	
 	public static class Type {

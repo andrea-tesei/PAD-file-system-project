@@ -13,6 +13,13 @@ import it.cnr.isti.pad.fs.entry.App;
 import it.cnr.isti.pad.fs.udpsocket.UDPServer;
 import it.cnr.isti.pad.fs.udpsocket.impl.StorageReceiverThreadImpl;
 
+/**
+ * StorageReceiverThread class.
+ * It implements a Runnable which acts as a listener thread for all received messages.
+ * 
+ * @author Andrea Tesei
+ *
+ */
 abstract public class StorageReceiverThread implements Runnable {
 
 	protected UDPServer udpServer = null;

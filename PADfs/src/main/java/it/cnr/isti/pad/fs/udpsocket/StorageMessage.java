@@ -7,7 +7,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import it.cnr.isti.pad.fs.storage.*;
 
-// TODO: implements toString() method for debug purposes
 public class StorageMessage extends Message {
 
 	private String Host = null;
@@ -22,6 +21,10 @@ public class StorageMessage extends Message {
 	private JSONArray Backup = null;
 	private Data Data = null;
 
+	/**
+	 * Storage Message constructor.
+	 * @param inputmsg the JSONObject representing a received message. 
+	*/
 	public StorageMessage(JSONObject inputmsg) throws JSONException, IOException{
 		this.fromJSONObject(inputmsg);
 	}
@@ -53,92 +56,181 @@ public class StorageMessage extends Message {
 		this.Backup = Backup;
 	}
 	
+	/**
+	 * Function getHandlerCounter. Retrieve the number of attempts this message has been handled. 
+	 * @return counter of times this message has been handled.
+	 */
 	public Integer getHandlerCounter() {
 		return handlerCounter;
 	}
 
+	/**
+	 * Function setHandlerCounter. Set the number of handler attempts already done.
+	 * @param handlerCounter the new value for the counter.
+	 */
 	public void setHandlerCounter(Integer handlerCounter) {
 		this.handlerCounter = handlerCounter;
 	}
 
+	/**
+	 * Function getDestinationHost. Retrieve the destination host of this message.
+	 * @return the destination ip for this message.
+	 */
 	public String getDestinationHost() {
 		return destinationHost;
 	}
 
+	/**
+	 * Function setDestinationHost. Set the destination host for this message.
+	 * @param destinationHost the destination ip of this message.
+	 */
 	public void setDestinationHost(String destinationHost) {
 		this.destinationHost = destinationHost;
 	}
 
+	/**
+	 * Function getBackup. Retrieve the set of backup files in a PUT_BACKUP message type.
+	 * @return the array of backup Data objects contained in this Message.
+	 */
 	public JSONArray getBackup() {
 		return Backup;
 	}
 
+	/**
+	 * Function setBackup. Set the array of backup Data objects for a PUT_BACKUP message.
+	 * @param backup the array of backup Data objects.
+	 */
 	public void setBackup(JSONArray backup) {
 		this.Backup = backup;
 	}
 
+	/**
+	 * Function getHost. Retrieve the ip address of the sender.
+	 * @return the ip address of the sender.
+	 */
+	public String getHost() {
+		return Host;
+	}
+	
+	/**
+	 * Function setHost. Set the ip address of the sender node.
+	 * @param host the ip address of the sender node.
+	 */
 	public void setHost(String host) {
 		this.Host = host;
 	}
-
-	public void setFileName(String fileName) {
-		this.fileName = fileName;
-	}
-
-	public void setType(Integer type) {
-		this.Type = type;
-	}
-
-	public void setCommand(Integer command) {
-		this.Command = command;
-	}
-
-	public void setIdRequest(Integer idRequest) {
-		this.IdRequest = idRequest;
-	}
-
-	public void setReturnCode(Integer returnCode) {
-		this.returnCode = returnCode;
-	}
-
-	public void setOutput(JSONArray output) {
-		this.Output = output;
-	}
-
-	public void setData(Data data) {
-		this.Data = data;
-	}
-
-	public Integer getCommand() {
-		return Command;
-	}
 	
+	/**
+	 * Function getFileName. Retrieve the file name for the file contained in this message.
+	 * @return the name of the file contained in this message.
+	 */
 	public String getFileName() {
 		return fileName;
 	}
 
-	public String getHost() {
-		return Host;
-	}
 
+	/**
+	 * Function setFileName. Set the filename for the file contained into this Message.
+	 * @param fileName the filename to be set.
+	 */
+	public void setFileName(String fileName) {
+		this.fileName = fileName;
+	}
+	
+	/**
+	 * Function getType. Retrieve the type of this message. @see it.cnr.isti.pad.fs.udpsocket.Message.Type
+	 * @return the id of the message type.
+	 */
 	public Integer getType() {
 		return Type;
 	}
 
-	public Integer getIdRequest() {
-		return IdRequest;
+	/**
+	 * Function setType. Set the type of this Message. @see it.cnr.isti.pad.fs.udpsocket.Message.Type
+	 * @param type the id of the type for this Message.
+	 */
+	public void setType(Integer type) {
+		this.Type = type;
+	}
+	
+	/**
+	 * Function getCommand. Retrieve the command represented by this message.
+	 * @return the id of the command in this message. @see it.cnr.isti.pad.fs.udpsocket.Message.Command
+	 */
+	public Integer getCommand() {
+		return Command;
 	}
 
+	/**
+	 * Function setCommand. Set the command to be executed with this message. @see it.cnr.isti.pad.fs.udpsocket.Message.Command
+	 * @param command the id of the command for this message.
+	 */
+	public void setCommand(Integer command) {
+		this.Command = command;
+	}
+	
+	/**
+	 * Function getReturnCode. Retrieve the return code for this message. @see it.cnr.isti.pad.fs.udpsocket.Message.ReturnCode
+	 * @return the id of the return code contained in this message.
+	 */
 	public Integer getReturnCode() {
 		return returnCode;
 	}
 
+	/**
+	 * Function setReturnCode. Set the return code for this message. @see it.cnr.isti.pad.fs.udpsocket.Message.ReturnCode
+	 * @param returnCode the id of the return code for this message.
+	 */
+	public void setReturnCode(Integer returnCode) {
+		this.returnCode = returnCode;
+	}
+	
+	/**
+	 * Function getData. Retrieve the Data object contained in this message.
+	 * @return Data object contained in this message.
+	 */
+	public Data getData() {
+		return Data;
+	}
+
+	/**
+	 * Function setData. Set the Data object contained in this Message.
+	 * @param data
+	 */
+	public void setData(Data data) {
+		this.Data = data;
+	}
+
+	/**
+	 * Function getIdRequest. Retrieve the unique id of this request.
+	 * @return the unique id of this message request.
+	 */
+	public Integer getIdRequest() {
+		return IdRequest;
+	}
+	
+	/**
+	 * Function setIdRequest. Set the unique id of this request message.
+	 * @param idRequest the id of the request to be set.
+	 */
+	public void setIdRequest(Integer idRequest) {
+		this.IdRequest = idRequest;
+	}
+
+	/**
+	 * Function getOutput. Retrieve the output contained in this message.
+	 * @return the JSONArray of the output contained in this message.
+	 */
 	public JSONArray getOutput() {
 		return Output;
 	}
-
-	public Data getData() {
-		return Data;
+	
+	/**
+	 * Function setOutput. Set the output field for this message, useful to gives back a message explanation of outcome to the requestor. 
+	 * @param output to be set in the output field.
+	 */
+	public void setOutput(JSONArray output) {
+		this.Output = output;
 	}
 
 	private void fromJSONObject(JSONObject inputObj) throws JSONException, IOException{

@@ -14,7 +14,13 @@ import org.json.JSONObject;
 
 import it.cnr.isti.pad.fs.storage.StorageNode;
 
-
+/**
+ * UDPServer class.
+ * It contains the UDP Socket server for this node.
+ * 
+ * @author Andrea Tesei
+ *
+ */
 public class UDPServer implements IUDPSocket {
 	private final int localPort = 9099;
 	private String serverName = "";

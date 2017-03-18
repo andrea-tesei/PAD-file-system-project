@@ -50,12 +50,12 @@ import it.cnr.isti.pad.fs.gossiping.GossipResourceService;
 import it.cnr.isti.pad.fs.runnables.StorageResponseAsyncHandler;
 
 /** 
- * StorageNode class: it implements the logic of the storage functions of each node of the net.
- * 					  It also implement the GossipListener interface in order to listen for
- * 					  new UP/DOWN nodes.
+ * StorageNode class. 
+ * It implements the logic of the storage functions of each node of the net.
+ * It also implement the GossipListener interface in order to listen for new UP/DOWN nodes.
+ * 
+ * @author Andrea Tesei
  * */
-// TODO: confict resolution => ok (to be tested) + Delete all e.printstacktrace() and put the associated message to logger => TBD + refactoring => TO be finished + api => ok
-// 		For refactoring: this thread reamin for manage command to the nodes: tail -f log, cluster status ecc + use spring boot 
 public class StorageNode extends Thread implements GossipListener, OnMessageReceivedListener, OnResponseHandlerFinished {
 
 	public static AtomicInteger localMembersIDCounter = new AtomicInteger(0);
@@ -63,19 +63,19 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 	public static AtomicInteger requestIDCounter = new AtomicInteger(0);
 
 	// The files for which this node is responsible.
-	public static ConcurrentHashMap<String, Data> myFiles;
+	public static ConcurrentHashMap<String, Data> myFiles = null;
 
 	// The backup files for which this node acts as replica.
-	public static ConcurrentHashMap<String, HashMap<String,Data>> backupFiles;
+	public static ConcurrentHashMap<String, HashMap<String,Data>> backupFiles = null;
 
 	// The Consistent Hasher instance
-	public static ConsistentHasher<String, String> cHasher;
+	public static ConsistentHasher<String, String> cHasher = null;
 
 	// HashMap of my pending requests
-	public static ConcurrentHashMap<Integer, StorageMessage> pendingRequest;
+	public static ConcurrentHashMap<Integer, StorageMessage> pendingRequest = null;
 
 	// HashMap of my responses for pending requests
-	public static ConcurrentHashMap<Integer, StorageMessage> pendingResponse;
+	public static ConcurrentHashMap<Integer, StorageMessage> pendingResponse = null;
 
 	// Instance of Gossip Service
 	public static GossipResourceService grs = null;
@@ -89,22 +89,31 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 	public static final Logger LOGGER = Logger.getLogger(StorageNode.class);
 
 	private static AtomicBoolean keepRunning;
+	
+	public static StorageNodeUtils utils = null;
 
 	// Runnable for sending messages to other nodes
-	private static StorageSenderThreadImpl senderThread = null;
+	public static StorageSenderThreadImpl senderThread = null;
 
 	// Runnable-daemon for receiving messages from other nodes
-	private static StorageReceiverThreadImpl receiverThread = null;
+	public static StorageReceiverThreadImpl receiverThread = null;
 
-	private static StorageResponseAsyncHandler responseHandlerThread = null;
+	public static StorageResponseAsyncHandler responseHandlerThread = null;
 
 	// Executor service used to run threads
-	private static ExecutorService executor = null;
+	public static ExecutorService executor = null;
 
 	public final static HashFunction Hash_SHA1 = new SHA1HashFunction();
 
 	private char[] workchars = {'|', '/', '-', '\\'};
 
+	/**
+	 * StorageNode constructor. 
+	 * 
+	 * @param fileSettings the file containing the settings for this StorageNode.
+	 * @throws UnknownHostException 
+	 * @throws SocketException
+	 */
 	public StorageNode(File fileSettings) throws UnknownHostException, SocketException{
 		myFiles = new ConcurrentHashMap<String, Data>();
 		backupFiles = new ConcurrentHashMap<String, HashMap<String, Data>>();
@@ -112,6 +121,7 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 		pendingResponse = new ConcurrentHashMap<Integer, StorageMessage>();
 		grs = new GossipResourceService(fileSettings, this);
 		executor = Executors.newCachedThreadPool();
+		utils = new StorageNodeUtils();
 		keepRunning = new AtomicBoolean(true);
 		int i = 0;
 		while(grs.getGossipService().get_gossipManager().getMemberList().isEmpty()){
@@ -139,40 +149,6 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 		myId = grs.getGossipService().get_gossipManager().getMyself().getId();
 		cHasher.addBucket(myId);
 		grs.getGossipService().get_gossipManager().getMemberList().forEach(member -> cHasher.addBucket(member.getId()));
-	}
-
-	public static String getIPFromID(String id){
-		String ret = "";
-		for(LocalGossipMember member: grs.getGossipService().get_gossipManager().getMemberList()){
-			if(member.getId().equals(id))
-				ret = member.getHost();
-		}
-		return ret;
-	}
-
-	public static String getIDFromIP(String ip){
-		String ret = "";
-		for(LocalGossipMember member: grs.getGossipService().get_gossipManager().getMemberList()){
-			if(member.getHost().equals(ip))
-				ret = member.getId();
-		}
-		return ret;
-	}
-
-	public static void addRequestToQueue(StorageMessage msg, String ipAddress){
-		senderThread.addSendRequestToQueue(msg, ipAddress);
-	}
-
-	public static void addResponseToHandlerQueue(Integer id){
-		responseHandlerThread.addSingleIdToQueue(id);
-	}
-
-	public static void executeSenderThread(){
-		executor.execute(senderThread);
-	}
-
-	public static void executeResponseHandlerThread(){
-		executor.execute(responseHandlerThread);
 	}
 
 
@@ -217,11 +193,11 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 				names.add(fileNamesIterator.nextElement());
 			ArrayList<Integer> ids = new ArrayList<>();
 			for(String fileName : names){
-				List<String> possibleBucketFor = StorageNode.retrieveBucketForMember(fileName);
+				List<String> possibleBucketFor = utils.retrieveBucketForMember(fileName);
 				if(!possibleBucketFor.isEmpty() && !possibleBucketFor.get(0).equals(myId)){
 					int idUpdateRequest = StorageNode.requestIDCounter.getAndIncrement();
 					StorageMessage putRequest = new StorageMessage(StorageNode.myHost,
-							StorageNode.getIPFromID(possibleBucketFor.get(0)),
+							utils.getIPFromID(possibleBucketFor.get(0)),
 							Message.Type.REQUEST, 
 							idUpdateRequest, 
 							Message.Command.PUT, 
@@ -232,7 +208,7 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 							null);
 					cHasher.removeMember(fileName);
 					StorageNode.pendingRequest.put(idUpdateRequest, putRequest);
-					StorageNode.senderThread.addSendRequestToQueue(putRequest, StorageNode.getIPFromID(possibleBucketFor.get(0)));
+					StorageNode.senderThread.addSendRequestToQueue(putRequest, utils.getIPFromID(possibleBucketFor.get(0)));
 					ids.add(idUpdateRequest);
 					//	The file will be fisically removed on response
 				}
@@ -242,7 +218,7 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 				// Create PUT_BACKUP messages for each descendant of this virtBucket
 				List<String> possibleBackup = cHasher.getMembersForVirtualBucket(myId, virtBucket, names);
 				if(!possibleBackup.isEmpty()){
-					String ipCurrentReplica = StorageNode.getIPFromID(cHasher.getDescendantBucketKey(myId, virtBucket));
+					String ipCurrentReplica = utils.getIPFromID(cHasher.getDescendantBucketKey(myId, virtBucket));
 					int idBackupRequest = StorageNode.requestIDCounter.getAndIncrement();
 					StorageMessage putBackup = new StorageMessage(StorageNode.myHost,
 							ipCurrentReplica,
@@ -282,16 +258,6 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 				commandAndArgs.add(input);
 			}
 			switch(commandAndArgs.get(0)){
-//			case "setversion":
-//				JSONObject inputVersion = new JSONObject(commandAndArgs.get(2));
-//				VectorClock provaVersion = new VectorClock(inputVersion);
-//				String filename = commandAndArgs.get(1);
-//				StorageNode.myFiles.get(filename).setVersion(provaVersion);
-//				break;
-//			case "getversion":
-//				VectorClock ver = StorageNode.myFiles.get(commandAndArgs.get(1)).getVersion();
-//				System.out.println(ver.toJSONObject());
-//				break;
 			case "CLUSTER_STATUS":
 				// Print all nodes with active/down flag
 				System.out.println("Cluster status up to now:");
@@ -419,805 +385,10 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 		return (int) (Math.log(input) / Math.log(base));
 	}
 
-	// Auxiliary function: retrieve the backet's id corresponding to the given member. (if the member isn't in any bucket, the function return it's possible bucket)
-	public static ArrayList<String> retrieveBucketForMember(String member){
-		List<String> memb = new ArrayList<String>();
-		memb.add(member);
-		ArrayList<String> ret = new ArrayList<String>();
-		cHasher.getAllBuckets().forEach(bucket ->
-		{
-			if(!cHasher.getMembersFor(bucket, memb).isEmpty())
-				ret.add(bucket);
-		});
-		return ret;
-	}
-
-	public static ArrayList<ByteBuffer> retrieveVirtualBucketForMember(String member){
-		ArrayList<String> memb = new ArrayList<String>();
-		memb.add(member);
-		ArrayList<ByteBuffer> selectedKeys = new ArrayList<>();
-		cHasher.getAllBuckets().forEach(bucketName -> 
-		{
-			List<ByteBuffer> virtualNodes = cHasher.getAllVirtualBucketsFor(bucketName);
-			virtualNodes.forEach(virtNode ->
-			{
-				if(!cHasher.getMembersForVirtualBucket(bucketName, virtNode, memb).isEmpty()){
-					selectedKeys.add(virtNode);
-				}
-			});
-		});
-		return selectedKeys;
-	}
-
-	// PutData: the assumption is that this methods is called for update/put
-	//		 only files that belongs to this bucket, otherwise return err.
-	//		 P.S.: take care about replica copies
-	// RETURNS: the id of the request for UPDATE_BACKUP (if the file is new), -1 otherwise
-	public static int putData(Data dataFile) throws IOException{
-		int ret = 0;
-		byte[] rcvdFile = null;
-		File filesDir = null;
-		dataFile.setPathToFile("./files/");
-		ArrayList<ByteBuffer> virtualBucketFor = retrieveVirtualBucketForMember(dataFile.getFileName());
-		String ipCurrentReplica = null;
-		if(virtualBucketFor.isEmpty()){
-			// this node is the last one in the network. Save the file without replica and print a message.
-			StorageNode.LOGGER.warn("The system at this point is composed only by this node. From now, consistency and availability are not guaranteed.");
-			ret = -2;
-		} else
-			ipCurrentReplica = StorageNode.getIPFromID(cHasher.getDescendantBucketKey(myId, virtualBucketFor.get(0)));
-		int idRequestForUpdateBackup;
-		StorageMessage updateBackup = null;
-		if(!StorageNode.myFiles.containsKey(dataFile.getFileName())){
-			System.out.println("Myfiles does not contains " + dataFile.getFileName());
-			if(dataFile.getVersion() == null){
-				ByteBuffer myIdAsHash = ByteBuffer.wrap(StorageNode.Hash_SHA1.hash(StorageNode.myId.getBytes()));
-				VectorClock newVC = new VectorClock();
-				newVC.incrementVersion(Math.abs((short) myIdAsHash.getInt()), System.currentTimeMillis());
-				dataFile.setVersion(newVC);
-			}
-			if(dataFile.getFile() == null){
-				System.out.println("The given file is null. Put aborted.");
-				ret = -1;
-			} else {
-				int idNewFile = StorageNode.localMembersIDCounter.getAndIncrement();
-				dataFile.setIdFile(idNewFile);
-				dataFile.setPathToFile("./files/");
-				dataFile.setReplica(false);
-				StorageNode.myFiles.put(dataFile.getFileName(), dataFile);
-				StorageNode.cHasher.addMember(dataFile.getFileName());
-				// Save file locally
-				rcvdFile = Base64.decodeBase64(dataFile.getFile());
-				// save the file to disk
-				filesDir = new File("./files");
-				if(!filesDir.exists()){
-					filesDir.mkdir();
-				}
-				File fileToSave = new File("./files/" + dataFile.getFileName());
-				Files.write(rcvdFile, fileToSave);
-				if(ipCurrentReplica != null){
-					int currentIDREQ = StorageNode.requestIDCounter.getAndIncrement();
-					// Send file to replica node
-					StorageMessage sendBackup = new StorageMessage(StorageNode.myHost,
-							ipCurrentReplica,
-							Message.Type.REQUEST, 
-							currentIDREQ, 
-							Message.Command.UPDATE_BACKUP, 
-							-1, 
-							null, 
-							dataFile.getFileName(), 
-							StorageNode.myFiles.get(dataFile.getFileName()), 
-							null);
-					StorageNode.responseHandlerThread.addSingleIdToQueue(currentIDREQ);
-					StorageNode.pendingRequest.put(currentIDREQ, sendBackup);
-					StorageNode.senderThread.addSendRequestToQueue(sendBackup, ipCurrentReplica);
-					ret = currentIDREQ;
-				}
-			}
-		} else {
-			System.out.println("Myfiles contains " + dataFile.getFileName());
-			ArrayList<Integer> ids = new ArrayList<>();
-			if(dataFile.getVersion() != null){
-				VectorClock myCopy = myFiles.get(dataFile.getFileName()).getVersion();
-				VectorClock newCopy = dataFile.getVersion();
-				switch (myCopy.compare(newCopy)) {
-				case AFTER:
-					System.out.println("my vector clock is AFTER NEW CLOCK");
-					ret = 0;
-					// Do nothing
-					break;
-				case BEFORE:
-					System.out.println("my vector clock is BEFORE new clock");
-					// Update value and send update to replica node
-					dataFile.setIdFile(myFiles.get(dataFile.getFileName()).getIdFile());
-					Data oldCopy = myFiles.remove(dataFile.getFileName());
-					dataFile.setVersion(dataFile.getVersion().merge(oldCopy.getVersion()));
-					myFiles.put(dataFile.getFileName(), dataFile);
-					rcvdFile = Base64.decodeBase64(dataFile.getFile());
-					// save the file to disk
-					filesDir = new File(dataFile.getPathToFile());
-					if(!filesDir.exists()){
-						filesDir.mkdir();
-					}
-					File fileToSave = new File(dataFile.getPathToFile() + dataFile.getFileName());
-					Files.write(rcvdFile, fileToSave);
-					if(ipCurrentReplica != null){
-						idRequestForUpdateBackup = StorageNode.requestIDCounter.getAndIncrement();
-						// Send updated value to backup copy
-						updateBackup = new StorageMessage(StorageNode.myHost, 
-								ipCurrentReplica,
-								Message.Type.REQUEST,
-								idRequestForUpdateBackup,
-								Message.Command.UPDATE_BACKUP,
-								-1,
-								null,
-								dataFile.getFileName(),
-								StorageNode.myFiles.get(dataFile.getFileName()),
-								null);
-						ret = idRequestForUpdateBackup;
-						ids.add(ret);
-						StorageNode.responseHandlerThread.addIdsToHandle(ids);
-						StorageNode.pendingRequest.put(idRequestForUpdateBackup, updateBackup);
-						StorageNode.senderThread.addSendRequestToQueue(updateBackup, ipCurrentReplica);
-					}
-					break;
-				case CONCURRENTLY:
-					Data copyOfConflict = myFiles.get(dataFile.getFileName());
-					copyOfConflict.addConflict(dataFile);
-					copyOfConflict.addConflict(copyOfConflict);
-					myFiles.remove(dataFile.getFileName());
-					myFiles.put(dataFile.getFileName(), copyOfConflict);
-					if(dataFile.getFile().equals(copyOfConflict.getFile()))
-						// if the two files are equal, merge and do nothing
-						System.out.println("The two given files have the same contents. Filename = " + dataFile.getFileName());
-					// Send updated value to backup copy
-					if(myFiles.get(dataFile.getFileName()).hasConflict()){
-						System.out.println("The given file has conflicts:");
-						for(Data conflict : myFiles.get(dataFile.getFileName()).getConflicts()){
-							System.out.println("Version=" + conflict.getVersion().toJSONObject());
-						}
-					} else
-						System.out.println("No conflict ");
-					if(ipCurrentReplica != null){
-						idRequestForUpdateBackup = StorageNode.requestIDCounter.getAndIncrement();
-						updateBackup = new StorageMessage(StorageNode.myHost, 
-								ipCurrentReplica,
-								Message.Type.REQUEST,
-								idRequestForUpdateBackup,
-								Message.Command.UPDATE_BACKUP,
-								-1,
-								null,
-								dataFile.getFileName(),
-								StorageNode.myFiles.get(dataFile.getFileName()),
-								null);
-						ret = idRequestForUpdateBackup;
-						ids.add(ret);
-						StorageNode.responseHandlerThread.addIdsToHandle(ids);
-						StorageNode.pendingRequest.put(idRequestForUpdateBackup, updateBackup);
-						StorageNode.senderThread.addSendRequestToQueue(updateBackup, ipCurrentReplica);
-					}
-					break;
-				}
-			} else {
-				// The given PUT is really an update from client of the given file => increment_version + override
-				dataFile.setIdFile(myFiles.get(dataFile.getFileName()).getIdFile());
-				Data oldCopy = myFiles.remove(dataFile.getFileName());
-				ByteBuffer myIdAsHash = ByteBuffer.wrap(StorageNode.Hash_SHA1.hash(StorageNode.myId.getBytes()));
-				dataFile.setVersion(oldCopy.getVersion().incremented(Math.abs((short) myIdAsHash.getInt()), System.currentTimeMillis()));
-				myFiles.put(dataFile.getFileName(), dataFile);
-				rcvdFile = Base64.decodeBase64(dataFile.getFile());
-				// save the file to disk
-				filesDir = new File(dataFile.getPathToFile());
-				if(!filesDir.exists()){
-					filesDir.mkdir();
-				}
-				File fileToSave = new File(dataFile.getPathToFile() + dataFile.getFileName());
-				Files.write(rcvdFile, fileToSave);
-				if(ipCurrentReplica != null){
-					idRequestForUpdateBackup = StorageNode.requestIDCounter.getAndIncrement();
-					// Send updated value to backup copy
-					updateBackup = new StorageMessage(StorageNode.myHost, 
-							ipCurrentReplica,
-							Message.Type.REQUEST,
-							idRequestForUpdateBackup,
-							Message.Command.UPDATE_BACKUP,
-							-1,
-							null,
-							dataFile.getFileName(),
-							StorageNode.myFiles.get(dataFile.getFileName()),
-							null);
-					ret = idRequestForUpdateBackup;
-					ids.add(ret);
-					StorageNode.responseHandlerThread.addIdsToHandle(ids);
-					StorageNode.pendingRequest.put(idRequestForUpdateBackup, updateBackup);
-					StorageNode.senderThread.addSendRequestToQueue(updateBackup, ipCurrentReplica);
-				}
-			}
-		}
-		return ret;
-	}
-
-
-	private int putBackupData(String idMaster, ArrayList<Data> backup) throws IOException{
-		int ret = 0;
-		if(!StorageNode.backupFiles.containsKey(idMaster)){
-			StorageNode.backupFiles.put(idMaster, new HashMap<String, Data>());
-		}
-		for(Data data : backup){
-			updateBackupData(idMaster, data);
-		}
-		return ret;
-	}
-
-	/**
-	 * 
-	 * @param file
-	 * @return 1 if the update was performed; 0 if the existent copy is updated; -1 in case of conflicts.
-	 * @throws IOException 
-	 */
-	private void updateBackupData(String idMaster, Data file) throws IOException{
-		file.setPathToFile("./backup/");
-		if(!backupFiles.get(idMaster).containsKey(file.getFileName())){
-			file.setReplica(true);
-			HashMap<String, Data> currentBackup = StorageNode.backupFiles.get(idMaster); 
-			StorageNode.backupFiles.remove(idMaster);
-			currentBackup.put(file.getFileName(), file);
-			StorageNode.backupFiles.put(idMaster, currentBackup);
-		} else { 
-			Data oldCopy = StorageNode.backupFiles.get(idMaster).get(file.getFileName());
-			file.setIdFile(oldCopy.getIdFile());
-			HashMap<String, Data> currentBackupFiles = backupFiles.remove(idMaster);
-			currentBackupFiles.put(file.getFileName(), file);
-			StorageNode.backupFiles.put(idMaster, currentBackupFiles);
-		}
-		byte[] rcvdFile = Base64.decodeBase64(file.getFile());
-		// save the file to disk
-		File backupDir = new File("./backup");
-		if(!backupDir.exists()){
-			backupDir.mkdir();				
-		}
-		File fileToSave = new File("./backup/"+file.getFileName());
-		Files.write(rcvdFile, fileToSave);
-	}
-
-	public static int deleteData(String fileName) throws IOException{
-		int ret = -1;
-		// Check if the file exists
-		if(!cHasher.getAllMembers().contains(fileName)){
-			// The requested file does not exists
-			StorageNode.LOGGER.warn("The file " + fileName + " does not exists and so cannot be deleted.");
-		} else {
-			ArrayList<ByteBuffer> virtualBucketFor = retrieveVirtualBucketForMember(fileName);
-			if(!virtualBucketFor.isEmpty()){
-				String ipCurrentReplica = StorageNode.getIPFromID(cHasher.getDescendantBucketKey(myId, virtualBucketFor.get(0)));
-				cHasher.removeMember(fileName);
-				Data deletedData = myFiles.remove(fileName);
-				File fileToDelete = new File(deletedData.getPathToFile()  + deletedData.getFileName());
-				if(fileToDelete.delete()){
-					int currDeleteIdRequest = StorageNode.requestIDCounter.getAndIncrement();
-					StorageMessage requestForDeleteBackup = new StorageMessage(StorageNode.myHost,
-							ipCurrentReplica,
-							Message.Type.REQUEST,
-							currDeleteIdRequest,
-							Message.Command.DELETE_BACKUP,
-							-1,
-							null,
-							fileName,
-							null,
-							null);
-					ret = currDeleteIdRequest;
-					StorageNode.responseHandlerThread.addSingleIdToQueue(currDeleteIdRequest);
-					StorageNode.pendingRequest.put(currDeleteIdRequest, requestForDeleteBackup);
-					StorageNode.senderThread.addSendRequestToQueue(requestForDeleteBackup, ipCurrentReplica);
-				} else
-					throw new IOException("An error occurs while deleting file: " + deletedData.getPathToFile() + "/" + deletedData.getFileName());
-			} else {
-				StorageNode.LOGGER.warn("This node seem to be the last one in the network. From now, consistency and availability are not guaranteed.");
-				ret = -2;
-			}
-		}
-		return ret;
-	}
-
-	private static void deleteBackupDatas(String idBackupBucket){
-		// Check if the file exists
-		if(backupFiles.containsKey(idBackupBucket)){
-			HashMap<String, Data> backupToRemove = backupFiles.remove(idBackupBucket);
-			backupToRemove.forEach((filename, file) -> 
-			{
-				System.out.println("Cleanup backup file: " + "./backup/" + file.getFileName());
-				File fileToDelete = new File("./backup/"  + file.getFileName());
-				fileToDelete.delete();
-			});
-		} else 
-			StorageNode.LOGGER.warn("The given id is not listed as node for which i'm replica.");
-	}
-
-	private static void cleanupOldBackup(){
-		List<ByteBuffer> myVirtualNodes = cHasher.getAllVirtualBucketsFor(myId);
-		List<String> myDescendantBucket = new ArrayList<>();
-		for(ByteBuffer virtBucket : myVirtualNodes)
-			myDescendantBucket.add(cHasher.getDescendantBucketKey(myId, virtBucket));
-		Enumeration<String> backupIterator = backupFiles.keys();
-		List<String> removedBackupForBucket = new ArrayList<>();
-		while(backupIterator.hasMoreElements()){
-			String backupBucket = backupIterator.nextElement();
-			if(!myDescendantBucket.contains(backupBucket)){
-				StorageNode.deleteBackupDatas(backupBucket);
-				removedBackupForBucket.add(backupBucket);
-			}
-		}
-		if(!removedBackupForBucket.isEmpty())
-			StorageNode.LOGGER.info("Old useless backup deleted: " + removedBackupForBucket);
-	}
-
-	private JSONArray retrieveJSONListFiles(){
-		JSONArray output = new JSONArray();
-		StorageNode.myFiles.forEach((fileName, dataFile) -> output.put(dataFile.toJSONObject()));
-		if(output.length() == 0)
-			output.put(new JSONObject().put("status", "empty list"));
-		return output;
-	}
-
-	public static int resolveConflictResolution(Long tsChosen, String fileName){
-		int ret = 0;
-		byte[] rcvdFile = null;
-		File filesDir = null;
-		try {
-			if(myFiles.containsKey(fileName)){
-				VectorClock oldClock = myFiles.get(fileName).getVersion();
-				ArrayList<Data> conflicts = myFiles.get(fileName).getConflicts();
-				Data dataChosen = null;
-				for(Data conflictData : conflicts){
-					if(conflictData.getVersion().getTimestamp() == tsChosen){
-						dataChosen = conflictData;
-					}
-				}
-				if(dataChosen != null){
-					dataChosen.setIdFile(StorageNode.myFiles.get(fileName).getIdFile());
-					dataChosen.clearConflict();
-					VectorClock newUpdatedClock = oldClock.merge(dataChosen.getVersion());
-					dataChosen.setVersion(newUpdatedClock);
-					StorageNode.myFiles.remove(fileName);
-					StorageNode.myFiles.put(fileName, dataChosen);
-					int idrequestForConflict = StorageNode.requestIDCounter.getAndIncrement();
-					ArrayList<ByteBuffer> virtualBucketFor = StorageNode.retrieveVirtualBucketForMember(fileName);
-					// Check if virtualBucketFor is empty: if it is, you have not backup to update
-					if(!virtualBucketFor.isEmpty()){
-						String ipCurrentReplica = StorageNode.getIPFromID(StorageNode.cHasher.getDescendantBucketKey(StorageNode.myId, virtualBucketFor.get(0)));
-						StorageMessage msgForConflictResolution = new StorageMessage(StorageNode.myHost,
-								ipCurrentReplica,
-								Message.Type.REQUEST,
-								idrequestForConflict,
-								Message.Command.UPDATE_BACKUP,
-								-1,
-								null,
-								fileName,
-								dataChosen,
-								null);
-						ret = idrequestForConflict;
-						StorageNode.responseHandlerThread.addSingleIdToQueue(ret);
-						StorageNode.pendingRequest.put(idrequestForConflict, msgForConflictResolution);
-						StorageNode.senderThread.addSendRequestToQueue(msgForConflictResolution, ipCurrentReplica);
-					} else {
-						StorageNode.LOGGER.warn("This node seems to be the last one in the network. From now, consistency and availability are not guaranteed.");
-						ret = -2;
-					}
-					rcvdFile = Base64.decodeBase64(dataChosen.getFile());
-					// save the file to disk
-					filesDir = new File("./backup/");
-					if(!filesDir.exists()){
-						filesDir.mkdir();
-					}
-					File fileToSave = new File("./backup/" + fileName);
-					Files.write(rcvdFile, fileToSave);
-				} else {
-					StorageNode.LOGGER.warn("The given request for CONFLICT_RESOLUTION is wrong: no timestamp equal to " + tsChosen + " stored in conflicts list.");
-				}
-
-			} else {
-				StorageNode.LOGGER.warn("The given request for CONFLICT_RESOLUTION is wrong: no " + fileName + " file saved locally.");
-				ret = -1;
-			}
-		} catch (IOException e) {
-			StorageNode.LOGGER.error("An error occurred when saving file in local directory. " + fileName + ". Error = " + e.getMessage());
-			ret = -1;
-		}
-		return ret;
-	}
-
-	// Method for processing Message request ONLY from other nodes
-	private void processRequest(StorageMessage msg) throws Exception{
-		int type = msg.getType();
-		int command = msg.getCommand();
-		switch(command){
-		case Message.Command.GET:
-			if(type == Message.Type.REQUEST){
-				// check if data is in my bucket
-				JSONArray output = new JSONArray();
-				output.put(new JSONObject().put((myFiles.containsKey(msg.getFileName())) ? "status" : "error", 
-						(myFiles.containsKey(msg.getFileName())) ? "ok" : "The requested file does not exists. " + msg.toJSONObject().toString()));
-				Data dataForGet = myFiles.get(msg.getFileName());
-				// Check if there aren't conflicts
-
-				StorageMessage response = null;
-				if(!output.getJSONObject(0).has("error")){
-					if(dataForGet.hasConflict()){
-						JSONArray conflictOutput = new JSONArray();
-						dataForGet.getConflicts().forEach(data -> conflictOutput.put(data.getVersion().toJSONObject()));
-						response = new StorageMessage(StorageNode.myHost,
-								msg.getHost(),
-								Message.Type.RESPONSE, 
-								msg.getIdRequest(), 
-								msg.getCommand(), 
-								Message.ReturnCode.CONFLICTS_EXISTS, 
-								conflictOutput, 
-								msg.getFileName(), 
-								null, 
-								null);
-					} else
-						response = new StorageMessage(StorageNode.myHost,
-								msg.getHost(),
-								Message.Type.RESPONSE, 
-								msg.getIdRequest(), 
-								msg.getCommand(), 
-								Message.ReturnCode.OK, 
-								output, 
-								msg.getFileName(), 
-								dataForGet, 
-								null);
-				} else
-					response = new StorageMessage(StorageNode.myHost,
-							msg.getHost(),
-							Message.Type.RESPONSE, 
-							msg.getIdRequest(), 
-							msg.getCommand(), 
-							Message.ReturnCode.NOT_EXISTS, 
-							output, 
-							msg.getFileName(), 
-							null, 
-							null);
-
-				StorageNode.senderThread.addSendRequestToQueue(response, msg.getHost());
-				StorageNode.executor.execute(StorageNode.senderThread);
-			} else if(type == Message.Type.RESPONSE) {
-				if(pendingRequest.containsKey(msg.getIdRequest())){
-					pendingRequest.remove(msg.getIdRequest());
-					pendingResponse.put(msg.getIdRequest(), msg);
-				} else 
-					// drop the packet
-					StorageNode.LOGGER.warn("Receive a reponse message associated to any of pending id requests. The packet will be dropped. " + msg.toJSONObject());
-			}
-			break;
-		case Message.Command.PUT:
-			if(type == Message.Type.REQUEST){
-				int ret = StorageNode.putData(msg.getData());
-				JSONArray output = new JSONArray();
-				if(ret == -1)
-					output.put(new JSONObject().put("error", "The given file is null."));
-				else if (ret == -2)
-					output.put(new JSONObject().put("status", "This node is the only one in the system. From now, consistency and availability features are not guarranteed."));
-				else
-					output.put(new JSONObject().put("status", "ok"));
-				StorageMessage response = new StorageMessage(StorageNode.myHost,
-						msg.getHost(),
-						Message.Type.RESPONSE, 
-						msg.getIdRequest(),
-						msg.getCommand(),
-						(output.getJSONObject(0).has("error")) ? Message.ReturnCode.ERROR : Message.ReturnCode.OK, 
-								output, 
-								msg.getFileName(), 
-								null, 
-								null);
-				StorageNode.senderThread.addSendRequestToQueue(response, msg.getHost());
-				StorageNode.executor.execute(StorageNode.senderThread);
-				StorageNode.executor.execute(StorageNode.responseHandlerThread);
-			} else if(type == Message.Type.RESPONSE) {
-				if(pendingRequest.containsKey(msg.getIdRequest())){
-					// Check if the return code is OK: if not, print an error
-					pendingRequest.remove(msg.getIdRequest());
-					pendingResponse.put(msg.getIdRequest(), msg);
-					if(msg.getReturnCode() != Message.ReturnCode.OK)
-						StorageNode.LOGGER.warn("A problem arise when store " + msg.getFileName() + " file in " + msg.getHost() + " host.");
-					else
-						StorageNode.LOGGER.info("The file " + msg.getFileName() + " was stored in " + msg.getHost() + " host successfully.");
-				} else 
-					// drop the packet
-					StorageNode.LOGGER.warn("Receive a reponse message associated to any of pending id requests. The packet will be dropped. " + msg.toJSONObject());
-			}
-			break;
-		case Message.Command.DELETE:
-			if(type == Message.Type.REQUEST){
-				int ret = StorageNode.deleteData(msg.getFileName());
-				JSONArray output = new JSONArray();
-				if(ret == -1)
-					output.put(new JSONObject().put("error", "The system encountered a problem while deleting this file."));
-				else if(ret == -2)
-					output.put(new JSONObject().put("status", "The node " + StorageNode.myHost + " seems to be the last one in the network. From now consistency and availability are not guaranteed."));
-				else
-					output.put(new JSONObject().put("status", "ok"));
-				StorageMessage response = new StorageMessage(StorageNode.myHost,
-						msg.getHost(),
-						Message.Type.RESPONSE, 
-						msg.getIdRequest(), 
-						msg.getCommand(),
-						(output.getJSONObject(0).has("error")) ? Message.ReturnCode.NOT_EXISTS : Message.ReturnCode.OK, 
-								output, 
-								msg.getFileName(), 
-								null,
-								null);
-				StorageNode.senderThread.addSendRequestToQueue(response, msg.getHost());
-				StorageNode.executor.execute(StorageNode.senderThread);
-			} else if(type == Message.Type.RESPONSE) {
-				if(pendingRequest.containsKey(msg.getIdRequest())){
-					pendingRequest.remove(msg.getIdRequest());
-					pendingResponse.put(msg.getIdRequest(), msg);
-					if(msg.getReturnCode() != Message.ReturnCode.OK)
-						StorageNode.LOGGER.warn("A problem arise while deleting " + msg.getFileName() + " file from " + msg.getHost() + " host.");
-					else
-						StorageNode.LOGGER.info("The file " + msg.getFileName() + " was deleted from " + msg.getHost() + " host successfully.");
-				} else 
-					// drop the packet
-					StorageNode.LOGGER.warn("Receive a reponse message associated to any of pending id requests. The packet will be dropped. " + msg.toJSONObject());
-			}
-			break;
-		case Message.Command.LIST:
-			if(type == Message.Type.REQUEST){
-				JSONArray output = this.retrieveJSONListFiles();
-				StorageMessage response = new StorageMessage(StorageNode.myHost, 
-						msg.getHost(),
-						Message.Type.RESPONSE, 
-						msg.getIdRequest(), 
-						msg.getCommand(),
-						(output.getJSONObject(0).has("error")) ? Message.ReturnCode.ERROR : Message.ReturnCode.OK, 
-								output, 
-								null, 
-								null,
-								null);
-				StorageNode.senderThread.addSendRequestToQueue(response, msg.getHost());
-				StorageNode.executor.execute(StorageNode.senderThread);
-			} else if(type == Message.Type.RESPONSE) {
-				if(pendingRequest.containsKey(msg.getIdRequest())){
-					pendingRequest.remove(msg.getIdRequest());
-					pendingResponse.put(msg.getIdRequest(), msg);
-				} else 
-					// drop the packet
-					StorageNode.LOGGER.warn("Receive a reponse message associated to any of pending id requests. The packet will be dropped. " + msg.toJSONObject());
-			}
-			break;
-
-		case Message.Command.PUT_BACKUP:
-			// This message arrives whenever you ask for backup copy. You have to parse all files and store it
-			if(type == Message.Type.REQUEST){
-				int ret = 0;
-				JSONArray backupCopies = msg.getBackup();
-				ArrayList<Data> backup = new ArrayList<>();
-				StorageMessage putBackupResponse = null;
-				for(int i = 0; i < backupCopies.length() && (ret != -1); i++){
-					Data backupCopy = new Data(backupCopies.getJSONObject(i));
-					backupCopy.setPathToFile("./backup/");
-					backup.add(backupCopy);
-				}
-				ret = this.putBackupData(StorageNode.getIDFromIP(msg.getHost()), backup);
-				putBackupResponse = new StorageMessage(StorageNode.myHost,
-						msg.getHost(),
-						Message.Type.RESPONSE,
-						msg.getIdRequest(),
-						msg.getCommand(),
-						(ret != -1) ? Message.ReturnCode.OK : Message.ReturnCode.ERROR,
-								null,
-								null,
-								null,
-								null);
-				StorageNode.senderThread.addSendRequestToQueue(putBackupResponse, msg.getHost());
-				StorageNode.executor.execute(StorageNode.senderThread);
-			} else if(type == Message.Type.RESPONSE){
-				if(pendingRequest.containsKey(msg.getIdRequest())){
-					pendingRequest.remove(msg.getIdRequest());
-					pendingResponse.put(msg.getIdRequest(), msg);
-					if(msg.getReturnCode() == Message.ReturnCode.ERROR){
-						StorageNode.LOGGER.warn("A problem arise while send backup copies to " + msg.getHost() + " host.");
-					} else { 
-						StorageNode.LOGGER.info("The " + msg.getHost() + " host has successfully update my backup copy.");
-					}
-				} else 
-					// drop the packet
-					StorageNode.LOGGER.warn("Receive a reponse message associated to any of pending id requests. The packet will be dropped. " + msg.toJSONObject());
-			}
-			break;
-		case Message.Command.DELETE_BACKUP:
-			if(type == Message.Type.REQUEST){
-				StorageMessage responseForDeleteBackup = new StorageMessage(
-						StorageNode.myHost,
-						msg.getHost(),
-						Message.Type.RESPONSE, 
-						msg.getIdRequest(),
-						Message.Command.DELETE_BACKUP,
-						Message.ReturnCode.OK, 
-						null, 
-						msg.getFileName(), 
-						null, 
-						null);
-				if(StorageNode.backupFiles.containsKey(StorageNode.getIDFromIP(msg.getHost()))){
-					HashMap<String, Data> dataToDelete = StorageNode.backupFiles.remove(StorageNode.getIDFromIP(msg.getHost()));
-					for(Data data : dataToDelete.values()) {
-						File deleteFile = new File("./backup/" + data.getFileName());
-						if(!deleteFile.delete()){
-							dataToDelete.remove(data.getFileName());
-							StorageNode.backupFiles.put(StorageNode.getIDFromIP(msg.getHost()), dataToDelete);
-							responseForDeleteBackup = new StorageMessage(StorageNode.myHost, 
-									msg.getHost(),
-									Message.Type.RESPONSE, 
-									msg.getIdRequest(),
-									Message.Command.DELETE_BACKUP,
-									Message.ReturnCode.ERROR, 
-									null, 
-									msg.getFileName(), 
-									null, 
-									null);
-						}
-					}
-				} else {
-					responseForDeleteBackup = new StorageMessage(StorageNode.myHost, 
-							msg.getHost(),
-							Message.Type.RESPONSE, 
-							msg.getIdRequest(),
-							Message.Command.DELETE_BACKUP,
-							Message.ReturnCode.NOT_EXISTS, 
-							null, 
-							msg.getFileName(), 
-							null, 
-							null);
-				}
-				StorageNode.senderThread.addSendRequestToQueue(responseForDeleteBackup, msg.getHost());
-				StorageNode.executor.execute(senderThread);
-			} else if(type == Message.Type.RESPONSE) {
-				if(pendingRequest.containsKey(msg.getIdRequest())){
-					pendingRequest.remove(msg.getIdRequest());
-					pendingResponse.put(msg.getIdRequest(), msg);
-					if(msg.getReturnCode() != Message.ReturnCode.OK)
-						StorageNode.LOGGER.warn("A problem arise while deleting backup copy of " + msg.getFileName() +  " in " + msg.getHost() + " host.");
-					else
-						StorageNode.LOGGER.info("The " + msg.getHost() + " host has successfully deleted backup copy of " + msg.getFileName() + ".");
-				} else 
-					// drop the packet
-					StorageNode.LOGGER.warn("Receive a reponse message associated to any of pending id requests. The packet will be dropped. " + msg.toJSONObject());
-			}
-			break;
-		case Message.Command.UPDATE_BACKUP:
-			if(type == Message.Type.REQUEST){
-				ArrayList<Data> backup = new ArrayList<>();
-				backup.add(msg.getData());
-				int ret = this.putBackupData(StorageNode.getIDFromIP(msg.getHost()), backup);
-				JSONArray output = new JSONArray();
-				output.put(new JSONObject().put((ret > -1) ? "status" : "error", (ret > -1) ? "ok" : "Error while storing replica data. " + msg.toJSONObject().toString()));
-				StorageMessage response = new StorageMessage(StorageNode.myHost,
-						msg.getHost(),
-						Message.Type.RESPONSE, 
-						msg.getIdRequest(), 
-						msg.getCommand(),
-						(output.getJSONObject(0).has("error")) ? Message.ReturnCode.ERROR : Message.ReturnCode.OK, 
-								output, 
-								msg.getFileName(), 
-								null,
-								null);
-				StorageNode.senderThread.addSendRequestToQueue(response, msg.getHost());
-				StorageNode.executor.execute(StorageNode.senderThread);
-			} else if(type == Message.Type.RESPONSE) {
-				if(pendingRequest.containsKey(msg.getIdRequest())){
-					pendingRequest.remove(msg.getIdRequest());
-					pendingResponse.put(msg.getIdRequest(), msg);
-					if(msg.getReturnCode() != Message.ReturnCode.OK)
-						StorageNode.LOGGER.warn("A problem arise while sending backup copy to " + msg.getHost() + " host.");
-					else
-						StorageNode.LOGGER.info("The " + msg.getHost() + " host has successfully received backup copy.");
-				} else 
-					// drop the packet
-					StorageNode.LOGGER.warn("Receive a reponse message associated to any of pending id requests. The packet will be dropped. " + msg.toJSONObject());
-			}
-			break;
-		case Message.Command.ERASE_BACKUP:
-			if(type == Message.Type.REQUEST){
-				StorageNode.deleteBackupDatas(StorageNode.getIDFromIP(msg.getHost()));
-				StorageMessage eraseResponse = new StorageMessage(
-						StorageNode.myHost,
-						msg.getHost(),
-						Message.Type.RESPONSE,
-						msg.getIdRequest(),
-						msg.getCommand(),
-						Message.ReturnCode.OK,
-						null,
-						null,
-						null,
-						null);
-				StorageNode.senderThread.addSendRequestToQueue(eraseResponse, msg.getHost());
-				StorageNode.executor.execute(StorageNode.senderThread);		
-			} else if(type == Message.Type.RESPONSE){
-				if(pendingRequest.containsKey(msg.getIdRequest())){
-					pendingRequest.remove(msg.getIdRequest());
-					pendingResponse.put(msg.getIdRequest(), msg);
-					if(msg.getReturnCode() != Message.ReturnCode.OK)
-						StorageNode.LOGGER.warn("A problem arise while erase remote backup copy on " + msg.getHost() + " host.");
-					else
-						StorageNode.LOGGER.info("The " + msg.getHost() + " host has successfully erased backup copy.");
-				} else 
-					// drop the packet
-					StorageNode.LOGGER.warn("Receive a reponse message associated to any of pending id requests. The packet will be dropped. " + msg.toJSONObject());
-			}
-			break;
-		case Message.Command.CONFLICT_RESOLUTION:
-			if(type == Message.Type.REQUEST){
-				// Parse received message and resolve conflict
-				int idRequestForUpdateBackup = StorageNode.resolveConflictResolution(msg.getOutput().getLong(0), msg.getFileName());
-				StorageMessage conflictResponse = null;
-				if(idRequestForUpdateBackup == -1){
-					// An error occurred while saving file in local directory
-					conflictResponse = new StorageMessage(
-							StorageNode.myHost,
-							msg.getHost(),
-							Message.Type.RESPONSE,
-							msg.getIdRequest(),
-							msg.getCommand(),
-							Message.ReturnCode.ERROR,
-							null,
-							msg.getFileName(),
-							null,
-							null);
-					StorageNode.senderThread.addSendRequestToQueue(conflictResponse, msg.getHost());
-					StorageNode.executor.execute(StorageNode.senderThread);
-				} else if(idRequestForUpdateBackup == -2) {
-					JSONArray output = new JSONArray();
-					output.put(new JSONObject().put("status", "The node " + StorageNode.myHost + " seems to be the last one in the network. From now, consistency and availability are not guaranteed."));
-					conflictResponse = new StorageMessage(
-							StorageNode.myHost,
-							msg.getHost(),
-							Message.Type.RESPONSE,
-							msg.getIdRequest(),
-							msg.getCommand(),
-							Message.ReturnCode.OK,
-							output,
-							msg.getFileName(),
-							null,
-							null);
-					StorageNode.senderThread.addSendRequestToQueue(conflictResponse, msg.getHost());
-					StorageNode.executor.execute(StorageNode.senderThread);
-				} else if (idRequestForUpdateBackup != 0){
-					// Wait result with external thread for response handling
-					conflictResponse = new StorageMessage(
-							StorageNode.myHost,
-							msg.getHost(),
-							Message.Type.RESPONSE,
-							msg.getIdRequest(),
-							msg.getCommand(),
-							Message.ReturnCode.OK,
-							null,
-							msg.getFileName(),
-							null,
-							null);
-					StorageNode.senderThread.addSendRequestToQueue(conflictResponse, msg.getHost());
-					StorageNode.executor.execute(senderThread);
-					StorageNode.executor.execute(responseHandlerThread);
-				}
-			} else if(type == Message.Type.RESPONSE){
-				if(pendingRequest.containsKey(msg.getIdRequest())){
-					pendingRequest.remove(msg.getIdRequest());
-					pendingResponse.put(msg.getIdRequest(), msg);
-					if(msg.getReturnCode() != Message.ReturnCode.OK)
-						StorageNode.LOGGER.warn("A problem arise while resolving conflict for file " + msg.getFileName() + " in remote " + msg.getHost() + " host.");
-					else
-						StorageNode.LOGGER.info("The " + msg.getHost() + " host has successfully update copy of file in conflict.");
-				} else 
-					// drop the packet
-					StorageNode.LOGGER.warn("Receive a reponse message associated to any of pending id requests. The packet will be dropped. " + msg.toJSONObject());
-			}
-			break;
-		}
-	}
-
 	@Override
 	public void onReceivedMessage(StorageMessage receivedMsg) {
 		try {
-			processRequest(receivedMsg);
+			utils.processRequest(receivedMsg);
 		} catch (Exception e) {
 			e.printStackTrace();
 			StorageNode.LOGGER.warn("The system isn't able to process a received message. It will be dropped: " + receivedMsg.toJSONObject().toString() + " . Error = " + e.getMessage());
@@ -1268,10 +439,10 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 					fileToSendForBackup.forEach(fileName -> backup.put(myFiles.get(fileName).toJSONObjectWithFile()));
 					if(!fileToSendForBackup.isEmpty()){
 						if(newBucketReplica != null){
-							System.out.println("PUT_BACKUP " + fileToSendForBackup + " in " + StorageNode.getIPFromID(newBucketReplica));
+							System.out.println("PUT_BACKUP " + fileToSendForBackup + " in " + utils.getIPFromID(newBucketReplica));
 							int idRequestForPutBackup = StorageNode.requestIDCounter.getAndIncrement();
 							StorageMessage messageForNewPutBackup = new StorageMessage(StorageNode.myHost,
-									StorageNode.getIPFromID(newBucketReplica),
+									utils.getIPFromID(newBucketReplica),
 									Message.Type.REQUEST,
 									idRequestForPutBackup,
 									Message.Command.PUT_BACKUP,
@@ -1281,7 +452,7 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 									null,
 									backup);
 							StorageNode.pendingRequest.put(idRequestForPutBackup, messageForNewPutBackup);
-							StorageNode.senderThread.addSendRequestToQueue(messageForNewPutBackup, StorageNode.getIPFromID(newBucketReplica));
+							StorageNode.senderThread.addSendRequestToQueue(messageForNewPutBackup, utils.getIPFromID(newBucketReplica));
 							ids.add(idRequestForPutBackup);
 						} else {
 							// You are the only one in the network
@@ -1294,11 +465,11 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 
 					backupFromDeadMember.forEach((filename, data) -> 
 					{
-						ArrayList<ByteBuffer> virtualBucketFor = retrieveVirtualBucketForMember(data.getFileName());
+						ArrayList<ByteBuffer> virtualBucketFor = utils.retrieveVirtualBucketForMember(data.getFileName());
 						if(!virtualBucketFor.isEmpty()){
 							int idRequestUpdate;
 							try {
-								idRequestUpdate = StorageNode.putData(data);
+								idRequestUpdate = utils.putData(data);
 								if(idRequestUpdate != -1 && idRequestUpdate != -2)
 									ids.add(idRequestUpdate);
 							} catch (Exception e) {
@@ -1307,13 +478,13 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 						} else {
 							StorageNode.LOGGER.warn("The file " + filename + " has been saved in this node but apparently all other nodes are down.");
 							try {
-								StorageNode.putData(data);
+								utils.putData(data);
 							} catch (Exception e) {
 								StorageNode.LOGGER.error("The system encountered an error while saving the new file " + filename + ". Please take care of this situation. Error = " + e.getMessage());
 							}
 						}
 					});
-					StorageNode.deleteBackupDatas(member.getId());
+					utils.deleteBackupDatas(member.getId());
 				}
 				if(!ids.isEmpty()){
 					StorageNode.responseHandlerThread.addIdsToHandle(ids);
@@ -1327,7 +498,7 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 				ArrayList<Data> setDataForSendUpdate = new ArrayList<Data>();
 				StorageNode.myFiles.forEach((filename, data) -> 
 				{
-					ArrayList<String> bucketFor = StorageNode.retrieveBucketForMember(filename);
+					ArrayList<String> bucketFor = utils.retrieveBucketForMember(filename);
 					if(bucketFor.get(0).equals(member.getId())){ 
 						setDataForSendUpdate.add(data);
 					}
@@ -1340,9 +511,9 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 					int idForDeleteBackup = StorageNode.requestIDCounter.getAndIncrement();
 					ids.add(idForUpdate);
 					ids.add(idForDeleteBackup);
-					ArrayList<ByteBuffer> virtualBucketFor = retrieveVirtualBucketForMember(data.getFileName());
+					ArrayList<ByteBuffer> virtualBucketFor = utils.retrieveVirtualBucketForMember(data.getFileName());
 					if(!virtualBucketFor.isEmpty()){
-						String ipCurrentReplica = StorageNode.getIPFromID(cHasher.getDescendantBucketKey(myId, virtualBucketFor.get(0)));
+						String ipCurrentReplica = utils.getIPFromID(cHasher.getDescendantBucketKey(myId, virtualBucketFor.get(0)));
 						StorageMessage updateFile = new StorageMessage(
 								StorageNode.myHost,
 								member.getHost(),
@@ -1391,7 +562,7 @@ public class StorageNode extends Thread implements GossipListener, OnMessageRece
 					// send PUT_BACKUP and be sure it receive the message (with separate thread?)
 					int idRequestForPutBackup = StorageNode.requestIDCounter.getAndIncrement();
 					StorageMessage messageForNewPutBackup = new StorageMessage(StorageNode.myHost,
-							StorageNode.getIPFromID(member.getId()),
+							utils.getIPFromID(member.getId()),
 							Message.Type.REQUEST,
 							idRequestForPutBackup,
 							Message.Command.PUT_BACKUP,

@@ -15,6 +15,13 @@ import org.json.JSONObject;
 
 import it.cnr.isti.pad.fs.storage.StorageNode;
 
+/**
+ * UDPClientsHandler class.
+ * It contains the list of UDPClientsSockets for each node in the cluster.
+ * 
+ * @author Andrea Tesei
+ *
+ */
 public class UDPClientsHandler implements IUDPSocket {
 	
 	private DatagramSocket dgsocket = null;
@@ -23,16 +30,7 @@ public class UDPClientsHandler implements IUDPSocket {
 
 	public UDPClientsHandler() throws SocketException{
 		this.dgsocket = new DatagramSocket();
-		if(StorageNode.grs != null){
-			StorageNode.grs.getGossipService().get_gossipManager().getMemberList().forEach(node -> 
-							{
-								if(!node.getHost().equals(StorageNode.grs.getGossipService().get_gossipManager().getMyself().getHost())){
-									UDPClientsHandler.LOGGER.info("Retrieving client socket info for: " + node.getHost() + ":" + node.getPort());
-									SocketRemoteInfo info = new SocketRemoteInfo(node.getHost());
-									nodes.put(node.getHost(), info);
-								}
-							});
-		}
+		refreshClientsSocketList();
 	}
 	
 	public SocketAddress getSocketAddressFromIP(String ip){
@@ -43,6 +41,23 @@ public class UDPClientsHandler implements IUDPSocket {
 				result.add(info.getRemoteServerAddr());
 		});
 		return result.size() == 0 ? null : result.get(0);
+	}
+	
+	/**
+	 * Function refreshClientsSocketList. 
+	 * This method retrieve the ip addresses for each node in the cluster and sets up an UDPClientSocket for each of them.
+	 */
+	public void refreshClientsSocketList(){
+		if(StorageNode.grs != null){
+			StorageNode.grs.getGossipService().get_gossipManager().getMemberList().forEach(node -> 
+							{
+								if(!node.getHost().equals(StorageNode.grs.getGossipService().get_gossipManager().getMyself().getHost())){
+									UDPClientsHandler.LOGGER.info("Retrieving client socket info for: " + node.getHost() + ":" + node.getPort());
+									SocketRemoteInfo info = new SocketRemoteInfo(node.getHost());
+									nodes.put(node.getHost(), info);
+								}
+							});
+		}
 	}
 	
 	@Override

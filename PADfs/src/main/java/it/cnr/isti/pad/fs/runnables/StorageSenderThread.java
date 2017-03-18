@@ -14,6 +14,13 @@ import it.cnr.isti.pad.fs.udpsocket.SocketRemoteInfo;
 import it.cnr.isti.pad.fs.udpsocket.StorageMessage;
 import it.cnr.isti.pad.fs.udpsocket.UDPClientsHandler;
 
+/**
+ * StorageSenderThread class.
+ * Implements a Runnable for the instantaneous send message phase.
+ * 
+ * @author Andrea Tesei
+ *
+ */
 abstract public class StorageSenderThread implements Runnable {
 
 	protected UDPClientsHandler clientsHandlerSocket = null; 

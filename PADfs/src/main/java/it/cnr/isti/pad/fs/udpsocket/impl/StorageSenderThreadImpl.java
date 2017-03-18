@@ -15,14 +15,17 @@ public class StorageSenderThreadImpl extends StorageSenderThread {
 	protected void processSendMessageRequests() {
 		super.run();
 	}
+	
+	public void refreshClientsSKT(){
+		this.clientsHandlerSocket.refreshClientsSocketList();
+	}
 
 
 	@Override
 	public void addSendRequestToQueue(StorageMessage msg, String ip) {
-//		if(pendingSendRequest == null)
-//			pendingSendRequest = new HashMap<String,ArrayList<StorageMessage>>();
 		ArrayList<StorageMessage> msglist = new ArrayList<StorageMessage>();
 		msglist.add(msg);
+		// Add message to the pending list for the destination's address
 		if(pendingSendRequest.containsKey(ip)){
 			pendingSendRequest.get(ip).forEach(request -> msglist.add(request));
 			pendingSendRequest.remove(ip);

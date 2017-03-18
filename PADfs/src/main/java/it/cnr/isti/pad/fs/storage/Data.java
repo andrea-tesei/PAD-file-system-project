@@ -25,9 +25,9 @@ public class Data {
 	 * 
 	 * @param idFile : node's internal id of the file
 	 * @param isReplica : true if this file is a replica's copy
-	 * @param author
+	 * @param author : the name of the author of this file
 	 * @param owner : node owner of this file 
-	 * @param fileName
+	 * @param fileName : the name of the file
 	 * @param pathToFile : real path of the file
 	 * @param version : timestamp of creation/modification
 	 */
@@ -44,7 +44,7 @@ public class Data {
 	}
 
 	/**
-	 * Data constructor.
+	 * Data constructor. Creates new Data object from the given JSONObject extracted from a StorageMessage.
 	 * 
 	 * @param inputDataFromMessage : the Data field of a StorageMessage
 	 * @throws JSONException : if an error occurs while parsing JSON
@@ -54,83 +54,161 @@ public class Data {
 		this.conflict = new ArrayList<Data>();
 		this.fromJSONObject(inputDataFromMessage);
 	}
-	
+	/**
+	 * Function getConflicts. Returns the array of other version of this Data.
+	 * @return ArrayList<Data> containing all the version of this file.
+	 */
 	public ArrayList<Data> getConflicts(){
 		return conflict;
 	}
 	
+	/**
+	 * Function addConflict. Add a new version of this Data which is in conflict with the actual version.
+	 * @param dataInConflict version of this Data in conflict.
+	 */
 	public void addConflict(Data dataInConflict){
 		this.conflict.add(dataInConflict);
 	}
 	
+	/**
+	 * Function hasConflict. Returns true or false depending on the presence of conflicts.
+	 * @return true if conflicts exists, false otherwise.
+	 */
 	public boolean hasConflict(){
 		return !(this.conflict.size() == 0);
 	}
 	
+	/**
+	 * Function clearConflict. Clear the array of conflicts after a conflict resolution.
+	 */
 	public void clearConflict(){
 		this.conflict.clear();
 	}
 
+	/**
+	 * Function getOwner. Retrieve the owner's name of this file.
+	 * @return the name of the owner
+	 */
 	public String getOwner() {
 		return owner;
 	}
 
+	/**
+	 * Function setOwner. Set the owner's name to the given owner param.
+	 * @param owner the name of the owner to be saved to the file.
+	 */
 	public void setOwner(String owner) {
 		this.owner = owner;
 	}
 
+	/**
+	 * Function getFile. Retrieve the file contained in this Data object.
+	 * @return the file encoded in base64.
+	 */
 	public String getFile() {
 		return file;
 	}
 
+	/** 
+	 * Function setFile. Set the given file in this Data object. The given file must be encoded in base64.
+	 * @param file base64 encoded file.
+	 */
 	public void setFile(String file) {
 		this.file = file;
 	}
 
+	/**
+	 * Function getIdFile. Retrieve the unique id of this file.
+	 * @return the id of this file.
+	 */
 	public Integer getIdFile() {
 		return idFile;
 	}
 	
+	/** 
+	 * Function setIdFile. Set the given id to this Data object.
+	 * @param idFile integer representing the id of this file.
+	 */
 	public void setIdFile(Integer idFile) {
 		this.idFile = idFile;
 	}
 	
+	/**
+	 * Function isReplica. Returns true or false depending on the fact that this Data is a replica or not.
+	 * @return true if this file is a replica, false otherwise.
+	 */
 	public boolean isReplica() {
 		return isReplica;
 	}
 	
+	/**
+	 * Function setReplica. Set isReplica value for this file.
+	 * @param isReplica boolean value to be set.
+	 */
 	public void setReplica(boolean isReplica) {
 		this.isReplica = isReplica;
 	}
 	
+	/**
+	 * Function getAuthor. Retrieve the name of the author of this file.
+	 * @return the name of the author of this file.
+	 */
 	public String getAuthor() {
 		return author;
 	}
 	
+	/**
+	 * Function setAuthor. Set author name for this Data object.
+	 * @param author the name of the author for this file.	
+	 */
 	public void setAuthor(String author) {
 		this.author = author;
 	}
 	
+	/**
+	 * Function getFileName. Retrieve the name of the file contained into this Data object.
+	 * @return the name of the file in this Data object.
+	 */
 	public String getFileName() {
 		return fileName;
 	}
 	
+	/**
+	 * Function setFileName. Set the filename of the file contained in this Data object.
+	 * @param fileName the name of the file to be set in this Data object.
+	 */
 	public void setFileName(String fileName) {
 		this.fileName = fileName;
 	}
 	
+	/**
+	 * Function getPathToFile. Retrieve the full path in which the file is stored.
+	 * @return the real path in which the file in this Data object is stored.
+	 */
 	public String getPathToFile() {
 		return pathToFile;
 	}
 	
+	/**
+	 * Function setPathToFile. Set the full path in which the file is stored.
+	 * @param pathToFile the real path to be set in this Data object.
+	 */
 	public void setPathToFile(String pathToFile) {
 		this.pathToFile = pathToFile;
 	}
 	
+	/**
+	 * Function getVersion. Retrieve the actual version of this Data object.
+	 * @return VectoClock representing the actual version of this Data object.
+	 */
 	public VectorClock getVersion() {
 		return version;
 	}
 	
+	/**
+	 * Function setVersion. Set the new version for this Data object.
+	 * @param vc VectorClock containing the new version to be set.
+	 */
 	public void setVersion(VectorClock vc) {
 		this.version = vc;
 	}
@@ -198,29 +276,6 @@ public class Data {
 			this.file = inputJson.getString(Fields.file);
 	}
 
-//	// TODO: save only byteArray and then save phisical file in putData/putBackupData
-//	private void fromJSONObjectWithFile(JSONObject inputJson) throws JSONException{
-//		this.idFile = inputJson.getInt(Fields.idFile);
-//		this.isReplica = inputJson.getBoolean(Fields.isReplica);
-//		this.author = inputJson.getString(Fields.author);
-//		this.fileName = inputJson.getString(Fields.fileName);
-//		this.pathToFile = inputJson.getString(Fields.pathToFile);
-//		if(inputJson.has(Fields.version))
-//			this.version = new VectorClock(inputJson.getJSONObject(Fields.version));
-//		else
-//			this.version = new VectorClock();
-//		this.file = inputJson.getString(Fields.file);
-////		byte[] rcvdFile = Base64.decodeBase64(inputJson.getString(Fields.file));
-////		// save the file to disk
-////		File filesDir = new File(this.pathToFile);
-////		if(!filesDir.exists()){
-////			if(filesDir.mkdir()){
-////				File fileToSave = new File(this.pathToFile + this.fileName);
-////				Files.write(rcvdFile, fileToSave);
-////			} else
-////				throw new IOException("An error occurs while creating directory " + this.pathToFile + ".");
-////		}
-//	}
 
 	public static class Fields{
 		public static String idFile = "idFile";

@@ -1,13 +1,9 @@
 package it.cnr.isti.pad.fs.api;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
-
-import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -18,46 +14,53 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.code.gossip.LocalGossipMember;
-import com.google.common.io.Files;
-
 import it.cnr.isti.pad.fs.storage.Data;
 import it.cnr.isti.pad.fs.storage.StorageNode;
+import it.cnr.isti.pad.fs.storage.StorageNodeUtils;
 import it.cnr.isti.pad.fs.udpsocket.Message;
 import it.cnr.isti.pad.fs.udpsocket.StorageMessage;
 import it.cnr.isti.pad.fs.udpsocket.Message.ReturnCode;
-import voldemort.versioning.VectorClock;
 
+/**
+ * ApiController class. 
+ * This class implements the management of REST API interface of this Storage Node
+ * 
+ * @author Andrea Tesei
+ *
+ */
 @RestController
 @EnableAutoConfiguration
 @RequestMapping("/API/PADfs/")
 public class ApiControllers {
 
 	public static final Logger LOGGER = Logger.getLogger(ApiControllers.class);
+	
+	private StorageNodeUtils utils = null;
 
 	public ApiControllers(){
-
+		utils = new StorageNodeUtils();
 	}
 
-	@RequestMapping("/hello/{name}")
-	String hello(@PathVariable String name) {
-		return "Hello, " + name + "!";
-	}
-
+	/**
+	 * API "/PADfs/GET". 
+	 * This function implements the GET operation of a given file stored in the cluster.
+	 * @param fileName the name of the file which is requested by the user
+	 * @return if exists, the requested file or a request for conflict resolution
+	 */
 	@RequestMapping("/GET")
 	String getFile(@RequestParam(value = "filename") String fileName) {
-		ArrayList<String> bucketFor = StorageNode.retrieveBucketForMember(fileName);
+		ArrayList<String> bucketFor = utils.retrieveBucketForMember(fileName);
 		StorageMessage response = null;
 		if(bucketFor.size() > 1){
 			StorageNode.LOGGER.warn("More than one bucket for " + fileName);
 		} else if(!bucketFor.isEmpty() && !StorageNode.myId.equals(bucketFor.get(0))){
 			// This file is stored on a remote node
-			String ipBucketForFile = StorageNode.getIPFromID(bucketFor.get(0));
+			String ipBucketForFile = utils.getIPFromID(bucketFor.get(0));
 			int idRequest = StorageNode.requestIDCounter.getAndIncrement();
 			StorageMessage getRemoteFile = new StorageMessage(StorageNode.myHost,
 					ipBucketForFile,
@@ -70,8 +73,8 @@ public class ApiControllers {
 					null,
 					null);
 			StorageNode.pendingRequest.put(idRequest, getRemoteFile);
-			StorageNode.addRequestToQueue(getRemoteFile, ipBucketForFile);
-			StorageNode.executeSenderThread();
+			utils.addRequestToQueue(getRemoteFile, ipBucketForFile);
+			utils.executeSenderThread();
 			int attempts = 0; 
 			while(StorageNode.pendingRequest.containsKey(idRequest) && attempts < 40){
 				try {
@@ -143,15 +146,23 @@ public class ApiControllers {
 
 	}
 
+	/**
+	 * API "/PADfs/ConflictResolution".
+	 * This function implements the conflict resolution for a given file with more than one version in conflict. 
+	 * The resolution phase is guided by the timestamp choosen by the user.
+	 * @param fileName the file name involved into conflict resolution
+	 * @param tsChoosen the timestamp choosen for the final version
+	 * @return the response message containing the outcome of the conflict resolution
+	 */
 	@RequestMapping("/ConflictResolution")
 	String ConflictResolution(@RequestParam(value = "filename") String fileName, @RequestParam(value = "tschosen") @PathVariable Long tsChoosen) {
-		ArrayList<String> bucketFor = StorageNode.retrieveBucketForMember(fileName);
+		ArrayList<String> bucketFor = utils.retrieveBucketForMember(fileName);
 		StorageMessage response = null;
 		if(bucketFor.size() > 1){
 			StorageNode.LOGGER.warn("More than one bucket for " + fileName);
 		} else if(!bucketFor.isEmpty() && !StorageNode.myId.equals(bucketFor.get(0))){
 			// This file isn't stored in this node. Ask to remote one
-			String ipRemoteNode = StorageNode.getIPFromID(bucketFor.get(0));
+			String ipRemoteNode = utils.getIPFromID(bucketFor.get(0));
 			int idRequest = StorageNode.requestIDCounter.getAndIncrement();
 			StorageMessage remoteConflictResolutionMSG = new StorageMessage(StorageNode.myHost,
 					ipRemoteNode,
@@ -164,8 +175,8 @@ public class ApiControllers {
 					null, 
 					null);
 			StorageNode.pendingRequest.put(idRequest, remoteConflictResolutionMSG);
-			StorageNode.addRequestToQueue(remoteConflictResolutionMSG, ipRemoteNode);
-			StorageNode.executeSenderThread();
+			utils.addRequestToQueue(remoteConflictResolutionMSG, ipRemoteNode);
+			utils.executeSenderThread();
 			int attempts = 0; 
 			while(StorageNode.pendingRequest.containsKey(idRequest) && attempts < 40){
 				try {
@@ -203,7 +214,7 @@ public class ApiControllers {
 						null);
 			else {
 				// Check if some conflict is present in the requested file
-				int idRequestForUpdateBackup = StorageNode.resolveConflictResolution(tsChoosen, fileName);
+				int idRequestForUpdateBackup = utils.resolveConflictResolution(tsChoosen, fileName);
 				JSONArray output = new JSONArray();
 				if(idRequestForUpdateBackup == -1){
 					output.put(new JSONObject().put("error", "The system encountered an error while resolving conflict for file " + fileName));
@@ -231,8 +242,8 @@ public class ApiControllers {
 							null);
 				} else {
 					output.put(new JSONObject().put("status", "ok"));
-					StorageNode.executeSenderThread();
-					StorageNode.executeResponseHandlerThread();
+					utils.executeSenderThread();
+					utils.executeResponseHandlerThread();
 					response = new StorageMessage(StorageNode.myHost,
 							"",
 							Message.Type.RESPONSE, 
@@ -249,9 +260,16 @@ public class ApiControllers {
 		return convertJsonFormat(response.toJSONObject()).toString();
 	}
 
+	/**
+	 * API "/PADfs/PUT".
+	 * This function implements the feature of saving a given file in the cluster. 
+	 * @param fileName the name of the file to be saved
+	 * @param fileBase64 the file in base64 format
+	 * @return the response message for this operation
+	 */
 	@RequestMapping(value = "/PUT", method = RequestMethod.POST)
 	String putFile(@RequestParam(value = "filename") String fileName, @RequestParam(value = "file") String fileBase64) {
-		ArrayList<String> bucketFor = StorageNode.retrieveBucketForMember(fileName);
+		ArrayList<String> bucketFor = utils.retrieveBucketForMember(fileName);
 		StorageMessage response = null;
 		if(bucketFor.size() > 1){
 			StorageNode.LOGGER.warn("More than one bucket for " + fileName);
@@ -259,7 +277,7 @@ public class ApiControllers {
 			// This file belongs to a remote node
 			Data newData = new Data(-1, false, "root", bucketFor.get(0), fileName, "./files/", fileBase64, null);
 			// Forward request to right bucket
-			String ipRightBucket = StorageNode.getIPFromID(bucketFor.get(0));
+			String ipRightBucket = utils.getIPFromID(bucketFor.get(0));
 			int currentIdRequest = StorageNode.requestIDCounter.getAndIncrement();
 			StorageMessage putRemoteFile = new StorageMessage(StorageNode.myHost,
 					ipRightBucket,
@@ -272,8 +290,8 @@ public class ApiControllers {
 					newData,
 					null);
 			StorageNode.pendingRequest.put(currentIdRequest, putRemoteFile);
-			StorageNode.addRequestToQueue(putRemoteFile, ipRightBucket);
-			StorageNode.executeSenderThread();
+			utils.addRequestToQueue(putRemoteFile, ipRightBucket);
+			utils.executeSenderThread();
 			int attempts = 0;
 			while(StorageNode.pendingRequest.containsKey(currentIdRequest) && attempts < 40){
 				try {
@@ -300,7 +318,7 @@ public class ApiControllers {
 			// This file has to be stored in this node
 			try {
 				Data newData = new Data(-1, false, "root", StorageNode.myId, fileName, "./files/", fileBase64, null);
-				int idRequestForUpdateBackup =  StorageNode.putData(newData);
+				int idRequestForUpdateBackup =  utils.putData(newData);
 				JSONArray output = new JSONArray();
 				if(idRequestForUpdateBackup == -1)
 					output.put(new JSONObject().put("error", "An error occurred while storing the given file."));
@@ -308,8 +326,8 @@ public class ApiControllers {
 					output.put(new JSONObject().put("status", "The node " + StorageNode.myHost + " seems to be the only one in the network. From now, consistency and availability is not guaranteed."));
 				} else
 					output.put(new JSONObject().put("status", "ok"));
-				StorageNode.executeSenderThread();
-				StorageNode.executeResponseHandlerThread();
+				utils.executeSenderThread();
+				utils.executeResponseHandlerThread();
 				response = new StorageMessage(StorageNode.myHost,
 						"",
 						Message.Type.RESPONSE, 
@@ -337,6 +355,11 @@ public class ApiControllers {
 		return convertJsonFormat(response.toJSONObject()).toString();
 	}
 
+	/**
+	 * API "/PADfs/LIST".
+	 * This function provide the list of currently stored files in this node.
+	 * @return the response containing the list of the files currently stored in this node.
+	 */
 	@RequestMapping("/LIST")
 	String listFiles() {
 		ArrayList<Integer> idsListRequest = new ArrayList<Integer>();
@@ -354,9 +377,9 @@ public class ApiControllers {
 					null,
 					null);
 			StorageNode.pendingRequest.put(currListIdRequest, askForFileList);
-			StorageNode.addRequestToQueue(askForFileList, node.getHost());
+			utils.addRequestToQueue(askForFileList, node.getHost());
 		}
-		StorageNode.executeSenderThread();
+		utils.executeSenderThread();
 		int attempts = 0;
 		while(StorageNode.pendingRequest.size() > 0 && attempts < 20){
 			try {
@@ -427,15 +450,22 @@ public class ApiControllers {
 		return convertJsonFormat(response.toJSONObject()).toString();
 	}
 
+	
+	/**
+	 * API "/PADfs/DELETE".
+	 * This function gives the possibility to delete the file provided by the user, if exists.
+	 * @param fileNameForDelete the name of the file to be deleted
+	 * @return the response containing the outcome of this operation.
+	 */
 	@RequestMapping("/DELETE")
 	String delFile(@RequestParam(value = "filename") String fileNameForDelete) {
-		ArrayList<String> bucketFor = StorageNode.retrieveBucketForMember(fileNameForDelete);
+		ArrayList<String> bucketFor = utils.retrieveBucketForMember(fileNameForDelete);
 		StorageMessage response = null;
 		if(bucketFor.size() > 1){
 			ApiControllers.LOGGER.warn("More than one bucket for " + fileNameForDelete);
 		} else if(!bucketFor.isEmpty() && !StorageNode.myId.equals(bucketFor.get(0))){
 			// Delete file on remote node if exists
-			String remoteip = StorageNode.getIPFromID(bucketFor.get(0));
+			String remoteip = utils.getIPFromID(bucketFor.get(0));
 			int currDeleteIdRequest = StorageNode.requestIDCounter.getAndIncrement();
 			StorageMessage remoteDelMessage = new StorageMessage(StorageNode.myHost,
 					remoteip,
@@ -448,8 +478,8 @@ public class ApiControllers {
 					null,
 					null);
 			StorageNode.pendingRequest.put(currDeleteIdRequest, remoteDelMessage);
-			StorageNode.addRequestToQueue(remoteDelMessage, remoteip);
-			StorageNode.executeSenderThread();
+			utils.addRequestToQueue(remoteDelMessage, remoteip);
+			utils.executeSenderThread();
 			// Wait for response
 			int attempts = 0;
 			while(StorageNode.pendingRequest.containsKey(currDeleteIdRequest) && attempts < 40){
@@ -477,7 +507,7 @@ public class ApiControllers {
 		} else {
 			// Delete file on this node if exists
 			try{
-				int idRequestDeleteBackup = StorageNode.deleteData(fileNameForDelete);
+				int idRequestDeleteBackup = utils.deleteData(fileNameForDelete);
 				JSONArray output = new JSONArray();
 				if(idRequestDeleteBackup == -1){
 					response = new StorageMessage(StorageNode.myHost,
@@ -505,8 +535,8 @@ public class ApiControllers {
 							null);
 				}else{
 					output.put(new JSONObject().put("status", "ok"));
-					StorageNode.addResponseToHandlerQueue(idRequestDeleteBackup);
-					StorageNode.executeResponseHandlerThread();
+					utils.addResponseToHandlerQueue(idRequestDeleteBackup);
+					utils.executeResponseHandlerThread();
 					response = new StorageMessage(StorageNode.myHost,
 							"",
 							Message.Type.RESPONSE,
@@ -534,10 +564,15 @@ public class ApiControllers {
 		return convertJsonFormat(response.toJSONObject()).toString();
 	}
 
+	/**
+	 * convertJsonFormat auxiliary function. 
+	 * Transform a given JSONObject to a JsonNode in order to be converted to a String.
+	 * @param json to be transformed
+	 * @return JsonNode transformed
+	 */
 	static JsonNode convertJsonFormat(JSONObject json) {
 		ObjectNode ret = JsonNodeFactory.instance.objectNode();
 
-		@SuppressWarnings("unchecked")
 		Iterator<String> iterator = json.keys();
 		for (; iterator.hasNext();) {
 			String key = iterator.next();
@@ -560,15 +595,21 @@ public class ApiControllers {
 			else if (value instanceof Boolean)
 				ret.put(key, (Boolean) value);
 			else if (value instanceof JSONObject)
-				ret.put(key, convertJsonFormat((JSONObject) value));
+				ret.set(key, convertJsonFormat((JSONObject) value));
 			else if (value instanceof JSONArray)
-				ret.put(key, convertJsonFormat((JSONArray) value));
+				ret.set(key, convertJsonFormat((JSONArray) value));
 			else
 				throw new RuntimeException("not prepared for converting instance of class " + value.getClass());
 		}
 		return ret;
 	}
 
+	/**
+	 * convertJsonFormat auxiliary function. 
+	 * Transform a given JSONArray to a JsonNode in order to be converted to a String.
+	 * @param json to be transformed
+	 * @return JsonNode transformed
+	 */
 	static JsonNode convertJsonFormat(JSONArray json) {
 		ArrayNode ret = JsonNodeFactory.instance.arrayNode();
 		for (int i = 0; i < json.length(); i++) {

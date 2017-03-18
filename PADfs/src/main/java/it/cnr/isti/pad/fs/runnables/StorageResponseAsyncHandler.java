@@ -9,6 +9,15 @@ import it.cnr.isti.pad.fs.storage.StorageNode;
 import it.cnr.isti.pad.fs.udpsocket.Message;
 import it.cnr.isti.pad.fs.udpsocket.StorageMessage;
 
+/**
+ * StorageResponseAsyncHandler class. 
+ * Implements a Runnable which acts as an asynchronous handler for the PUT/UPDATE phase
+ * of a backup copy into the replica's nodes.
+ * It performs two attempts for each send message request in queue.
+ * 
+ * @author Andrea Tesei
+ *
+ */
 public class StorageResponseAsyncHandler implements Runnable {
 
 	public static ConcurrentSkipListSet<Integer> idsToHandle = new ConcurrentSkipListSet<Integer>();
@@ -49,7 +58,6 @@ public class StorageResponseAsyncHandler implements Runnable {
 					attempts++;
 				}
 				StorageMessage receivedMsg = StorageNode.pendingResponse.remove(idrequest);
-				// TODO: manage response messages with main thread and notification
 				if(receivedMsg != null){
 					StorageResponseAsyncHandler.idsToHandle.remove(idrequest);
 					if(receivedMsg.getReturnCode() == Message.ReturnCode.OK){
