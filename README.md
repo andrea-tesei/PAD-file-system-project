@@ -57,6 +57,6 @@ where <b>known_hosts.conf</b> is the list of known active nodes (Syntax: one IP 
 
 All tests were performed by using five [vagrant VMs](https://www.vagrantup.com/) and the final project has been tested also in a real cluster of seven nodes available at [ISTI of CNR](http://www.isti.cnr.it/).  
 
-# Further information
+# Other details
 
-For further information abount the architecture, design choices, code structure and other stuff, you can read my [final report](https://github.com/andrea-tesei/PAD-file-system-project/blob/master/Report_PADfs_Tesei.pdf).
+For further information about the architecture, design choices, code structure and other stuff, you can read my [final report](https://github.com/andrea-tesei/PAD-file-system-project/blob/master/Report_PADfs_Tesei.pdf).
