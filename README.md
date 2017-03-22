@@ -25,7 +25,7 @@ Make sure that the /etc/hosts file of the machines in which you want to run a PA
 
 # Administrative command-line
 
-Each node of the client is equipped with four basic operations for administrative control. Once you have executed a single node, you can use the following commands to know the status of the cluster:
+Each node of the cluster is equipped with four basic operations for administrative control. Once you have executed a single node, you can use the following commands to know the status of the cluster:
 
 1. <b>CLUSTER_STATUS</b>: prints all nodes with UP/DOWN flag and ip address;
 2. <b>NODE2FILEMAPPING</b>: for each node, print all files store on it;
