@@ -21,7 +21,8 @@ where gossip.conf is the JSON configuration file of gossiping protocol and it ha
 5. <b>hostname</b>: the hostname of the running node (previously set in /etc/hosts);
 6. <b>members</b>: array of other nodes with IP address, port and id.
 
-Make sure that the /etc/hosts file of the machines in which you want to run a PADfs instance are configured correctly: the hostname of the node given to the <b>gossip.conf</b> must be associated to the ip of the machine and also ip addresses of other nodes with their hostname have to be set in /etc/hosts.
+You can find an example of <b>gossip.conf</b> file [here](https://github.com/andrea-tesei/PAD-file-system-project/blob/master/PADfs/src/main/resources/gossip.conf).
+Make sure that the /etc/hosts file of the machines in which you want to run a PADfs instance are correctly configured: the hostname of the node given to the <b>gossip.conf</b> must be associated to the ip of the machine and also ip addresses of other nodes with their hostname have to be set in /etc/hosts.
 
 # Administrative command-line
 
